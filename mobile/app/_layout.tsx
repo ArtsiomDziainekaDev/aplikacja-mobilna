@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { store } from '../src/store';
@@ -8,6 +9,7 @@ import { setOnUnauthorized } from '../src/api/client';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { useAppDispatch } from '../src/hooks/useRedux';
 import { PaperProvider } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../src/theme/colors';
 
 function RootLayoutNav(): React.JSX.Element {
@@ -17,7 +19,7 @@ function RootLayoutNav(): React.JSX.Element {
   }, [dispatch]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
@@ -33,11 +35,11 @@ export default function RootLayout(): React.JSX.Element {
 
   return (
     <ErrorBoundary>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Provider store={store}>
         <PaperProvider
           theme={{
-            dark: false,
+            dark: true,
             colors: {
               primary: colors.primary,
               background: colors.background,
@@ -46,7 +48,16 @@ export default function RootLayout(): React.JSX.Element {
             },
           }}
         >
-          <RootLayoutNav />
+          <ThemeProvider value={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } }}>
+            <LinearGradient
+              colors={['#4a148c', '#1a0533', '#880e4f']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flex: 1 }}
+            >
+              <RootLayoutNav />
+            </LinearGradient>
+          </ThemeProvider>
         </PaperProvider>
       </Provider>
     </ErrorBoundary>

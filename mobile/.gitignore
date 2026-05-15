@@ -6,3 +6,4 @@ expo-env.d.ts
 
 # Expo local state (device history, dev server settings)
 .expo/
+.design/

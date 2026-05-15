@@ -52,21 +52,21 @@ export default function RegisterScreen(): React.JSX.Element {
   const handleRegister = useCallback(async () => {
     await haptics.lightTap();
     if (!username.trim() || !email.trim() || !password) {
-      Alert.alert('Błąd', 'Wypełnij wszystkie pola');
+      Alert.alert('Error', 'Fill in all fields');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Błąd', 'Hasło musi mieć co najmniej 6 znaków');
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
     if (!isConnected) {
-      Alert.alert('Brak połączenia', 'Sprawdź połączenie z internetem.');
+      Alert.alert('No connection', 'Check your internet connection.');
       return;
     }
     dispatch(clearError());
     const result = await dispatch(register({ username: username.trim(), email: email.trim(), password }));
     if (register.fulfilled.match(result)) {
-      Alert.alert('Sukces', 'Konto utworzone. Zaloguj się.', [
+      Alert.alert('Success', 'Account created. Please log in.', [
         { text: 'OK', onPress: () => router.replace('/(auth)/login') },
       ]);
     }
@@ -110,11 +110,11 @@ export default function RegisterScreen(): React.JSX.Element {
                   },
                 ]}
             >
-              <Text style={styles.title}>Rejestracja</Text>
+              <Text style={styles.title}>Sign Up</Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <TextInput
                   style={styles.input}
-                  placeholder="Nazwa użytkownika"
+                  placeholder="Username"
                   placeholderTextColor={colors.textSecondary}
                   value={username}
                   onChangeText={setUsername}
@@ -122,7 +122,7 @@ export default function RegisterScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Email"
+                  placeholder="Email address"
                   placeholderTextColor={colors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -132,7 +132,7 @@ export default function RegisterScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Hasło (min. 6 znaków)"
+                  placeholder="Password (min. 6 characters)"
                   placeholderTextColor={colors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -148,7 +148,7 @@ export default function RegisterScreen(): React.JSX.Element {
                     disabled={loading}
                     activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>{loading ? 'Rejestracja...' : 'Zarejestruj'}</Text>
+                  <Text style={styles.buttonText}>{loading ? 'Signing up...' : 'Sign Up'}</Text>
                 </TouchableOpacity>
               </Animated.View>
               <Link href="/(auth)/login" asChild>
@@ -159,7 +159,7 @@ export default function RegisterScreen(): React.JSX.Element {
                     }}
                     activeOpacity={0.85}
                 >
-                  <Text style={styles.linkText}>Masz konto? Zaloguj się</Text>
+                  <Text style={styles.linkText}>Already have an account? Sign In</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>

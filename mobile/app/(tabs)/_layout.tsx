@@ -1,82 +1,85 @@
-import React from 'react';
-import { Redirect, Tabs } from 'expo-router';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Redirect, Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppSelector } from '../../src/hooks/useRedux';
 import { colors } from '../../src/theme/colors';
+import Sidebar, { SIDEBAR_WIDTH } from '../../src/components/Sidebar';
 
-export default function TabsLayout(): React.JSX.Element {
+export default function MainLayout(): React.JSX.Element {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768; // standard md breakpoint
+  const insets = useSafeAreaInsets();
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <StatusBar style="light" />
-      <Tabs
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.primary, shadowOpacity: 0 },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: '700', fontSize: 18 },
-          headerTitle: 'CryptoWallet',
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-          },
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: { fontWeight: '600', fontSize: 12 },
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Dom',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="home" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="crypto"
-          options={{
-            title: 'Krypto',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="chart-line" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="news"
-          options={{
-            title: 'News',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="newspaper-variant-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="orders"
-          options={{
-            title: 'Zamowienia',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="cart-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profil',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="account" size={size} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
-    </>
+      
+      {/* Sidebar Component */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isDesktop={isDesktop}
+      />
+
+      <View style={[styles.mainContent, isDesktop && { marginLeft: SIDEBAR_WIDTH }]}>
+        {!isDesktop && (
+          <TouchableOpacity
+            style={[styles.floatingMenuBtn, { top: insets.top + 16 }]}
+            onPress={() => setSidebarOpen(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="menu" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.slotContainer}>
+          <Slot />
+        </View>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'column',
+    backgroundColor: colors.background,
+  },
+  floatingMenuBtn: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 90,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  slotContainer: {
+    flex: 1,
+  },
+});

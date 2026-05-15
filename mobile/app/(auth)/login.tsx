@@ -52,11 +52,11 @@ export default function LoginScreen(): React.JSX.Element {
   const handleLogin = useCallback(async () => {
     await haptics.lightTap();
     if (!email.trim() || !password) {
-      Alert.alert('Błąd', 'Wpisz email i hasło');
+      Alert.alert('Error', 'Enter email and password');
       return;
     }
     if (!isConnected) {
-      Alert.alert('Brak połączenia', 'Sprawdź połączenie z internetem.');
+      Alert.alert('No connection', 'Check your internet connection.');
       return;
     }
     dispatch(clearError());
@@ -104,7 +104,7 @@ export default function LoginScreen(): React.JSX.Element {
                   },
                 ]}
             >
-              <Text style={styles.title}>Logowanie</Text>
+              <Text style={styles.title}>Sign In</Text>
               {error ? (
                   <>
                     <Text style={styles.error}>{error}</Text>
@@ -113,7 +113,7 @@ export default function LoginScreen(): React.JSX.Element {
               ) : null}
               <TextInput
                   style={styles.input}
-                  placeholder="Email"
+                  placeholder="Email address"
                   placeholderTextColor={colors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -123,7 +123,7 @@ export default function LoginScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Hasło"
+                  placeholder="Password"
                   placeholderTextColor={colors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -139,7 +139,7 @@ export default function LoginScreen(): React.JSX.Element {
                     disabled={loading}
                     activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>{loading ? 'Logowanie...' : 'Zaloguj'}</Text>
+                  <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
                 </TouchableOpacity>
               </Animated.View>
               <Link href="/(auth)/register" asChild>
@@ -150,7 +150,7 @@ export default function LoginScreen(): React.JSX.Element {
                     }}
                     activeOpacity={0.85}
                 >
-                  <Text style={styles.linkText}>Nie masz konta? Zarejestruj się</Text>
+                  <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>

@@ -1,97 +1,236 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  useWindowDimensions,
+  TouchableOpacity,
+  TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppSelector } from '../../src/hooks/useRedux';
-import { useLocation } from '../../src/hooks/useLocation';
 import FadeInScreen from '../../src/components/FadeInScreen';
-import haptics from '../../src/utils/haptics';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 
+interface CryptoPrice {
+  symbol: string;
+  name: string;
+  icon: string;
+  price: number;
+  change24h: number;
+}
+
+const CRYPTOS = [
+  { symbol: 'BTC', name: 'Bitcoin', icon: '₿' },
+  { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
+  { symbol: 'SOL', name: 'Solana', icon: '◎' },
+  { symbol: 'BNB', name: 'BNB', icon: '◆' },
+  { symbol: 'XRP', name: 'Ripple', icon: '✕' },
+  { symbol: 'ADA', name: 'Cardano', icon: '₳' },
+  { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
+];
+
 export default function HomeScreen(): React.JSX.Element {
-  const { width, height } = useWindowDimensions();
-  const { user } = useAppSelector((s) => s.auth);
-  const { result, status, requestLocation } = useLocation();
+  const insets = useSafeAreaInsets();
+  const [prices, setPrices] = useState<Record<string, CryptoPrice>>({});
+  const [loading, setLoading] = useState(true);
+  const [fromCrypto, setFromCrypto] = useState('BTC');
+  const [toCrypto, setToCrypto] = useState('ETH');
+  const [fromAmount, setFromAmount] = useState('1');
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const symbols = CRYPTOS.map((c) => c.symbol + 'USDT');
+        const response = await fetch(
+          `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`
+        );
+        const data = await response.json();
+        const priceMap: Record<string, CryptoPrice> = {};
+        data.forEach((item: any) => {
+          const symbol = item.symbol.replace('USDT', '');
+          const info = CRYPTOS.find((c) => c.symbol === symbol);
+          if (info) {
+            priceMap[symbol] = {
+              symbol,
+              name: info.name,
+              icon: info.icon,
+              price: parseFloat(item.lastPrice),
+              change24h: parseFloat(item.priceChangePercent),
+            };
+          }
+        });
+        setPrices(priceMap);
+      } catch {
+        setPrices({
+          BTC: { symbol: 'BTC', name: 'Bitcoin', icon: '₿', price: 62500, change24h: 2.5 },
+          ETH: { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', price: 4032, change24h: 1.8 },
+          SOL: { symbol: 'SOL', name: 'Solana', icon: '◎', price: 148, change24h: -0.5 },
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const calculateConversion = () => {
+    const from = prices[fromCrypto];
+    const to = prices[toCrypto];
+    if (!from || !to || !fromAmount) return '0';
+    return ((parseFloat(fromAmount) * from.price) / to.price).toFixed(8);
+  };
+
+  const getExchangeRate = () => {
+    const from = prices[fromCrypto];
+    const to = prices[toCrypto];
+    if (!from || !to) return '...';
+    return (from.price / to.price).toFixed(6);
+  };
+
+  const handleSwap = () => {
+    setFromCrypto(toCrypto);
+    setToCrypto(fromCrypto);
+  };
+
+  const fromInfo = CRYPTOS.find((c) => c.symbol === fromCrypto);
+  const toInfo = CRYPTOS.find((c) => c.symbol === toCrypto);
+  const topCryptos = ['BTC', 'ETH', 'SOL'].map((s) => prices[s]).filter(Boolean);
 
   return (
     <FadeInScreen>
       <ScrollView
-        contentContainerStyle={[styles.container, { minHeight: height }]}
         style={styles.scroll}
+        contentContainerStyle={[styles.container, { paddingTop: insets.top + 70 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.card, width > 400 && { maxWidth: 420, alignSelf: 'center' }]}>
-          <Text style={styles.title}>Witaj, {user?.email?.split('@')[0] ?? 'użytkowniku'}</Text>
-          <Text style={styles.subtitle}>Platforma wymiany kryptowalut i walut</Text>
-
-          <View style={styles.locationSection}>
-            <View style={styles.locationHeader}>
-              <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Lokalizacja</Text>
-            </View>
-            {status === 'loading' && (
-              <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />
-            )}
-            {result?.status === 'granted' && (
-              <Text style={styles.locationText}>
-                {result.latitude.toFixed(4)}, {result.longitude.toFixed(4)}
-              </Text>
-            )}
-            {result?.status === 'denied' && (
-              <Text style={styles.locationDenied}>{result.message}</Text>
-            )}
-            {result?.status === 'error' && (
-              <Text style={styles.locationDenied}>{result.message}</Text>
-            )}
-            <TouchableOpacity
-              style={styles.locationButton}
-              onPress={async () => {
-                await haptics.mediumTap();
-                requestLocation();
-              }}
-              disabled={status === 'loading'}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.locationButtonText}>
-                {status === 'loading' ? 'Pobieranie...' : 'Pobierz moją lokalizację'}
-              </Text>
-            </TouchableOpacity>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <MaterialCommunityIcons name="calculator-variant" size={22} color={colors.textSecondary} />
           </View>
-
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={async () => {
-                await haptics.lightTap();
-                router.push('/(tabs)/crypto');
-              }}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="bitcoin" size={24} color="#fff" />
-              <Text style={styles.primaryButtonText}>Kursy kryptowalut</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={async () => {
-                await haptics.lightTap();
-                router.push('/(tabs)/orders');
-              }}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="format-list-bulleted" size={24} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Moje zamówienia</Text>
-            </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Crypto Calculator</Text>
+            <Text style={styles.subtitle}>Real-time cryptocurrency converter</Text>
           </View>
         </View>
+
+        {/* Calculator Card */}
+        <View style={styles.calcCard}>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ paddingVertical: 40 }} />
+          ) : (
+            <>
+              {/* From */}
+              <Text style={styles.label}>From</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setShowFromPicker(!showFromPicker)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.selectorIcon}>{fromInfo?.icon}</Text>
+                <Text style={styles.selectorText}>{fromInfo?.name} ({fromCrypto})</Text>
+                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {showFromPicker && (
+                <View style={styles.pickerList}>
+                  {CRYPTOS.map((c) => (
+                    <TouchableOpacity
+                      key={c.symbol}
+                      style={[styles.pickerItem, c.symbol === fromCrypto && styles.pickerItemActive]}
+                      onPress={() => { setFromCrypto(c.symbol); setShowFromPicker(false); }}
+                    >
+                      <Text style={styles.pickerItemText}>{c.icon} {c.name} ({c.symbol})</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <TextInput
+                style={styles.amountInput}
+                value={fromAmount}
+                onChangeText={setFromAmount}
+                keyboardType="decimal-pad"
+                placeholderTextColor={colors.textMuted}
+                placeholder="0.00"
+              />
+
+              {/* Swap */}
+              <View style={styles.swapRow}>
+                <TouchableOpacity style={styles.swapButton} onPress={handleSwap} activeOpacity={0.8}>
+                  <MaterialCommunityIcons name="swap-vertical" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* To */}
+              <Text style={styles.label}>To</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setShowToPicker(!showToPicker)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.selectorIcon}>{toInfo?.icon}</Text>
+                <Text style={styles.selectorText}>{toInfo?.name} ({toCrypto})</Text>
+                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              {showToPicker && (
+                <View style={styles.pickerList}>
+                  {CRYPTOS.map((c) => (
+                    <TouchableOpacity
+                      key={c.symbol}
+                      style={[styles.pickerItem, c.symbol === toCrypto && styles.pickerItemActive]}
+                      onPress={() => { setToCrypto(c.symbol); setShowToPicker(false); }}
+                    >
+                      <Text style={styles.pickerItemText}>{c.icon} {c.name} ({c.symbol})</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={styles.resultInput}>
+                <Text style={styles.resultText}>{calculateConversion()}</Text>
+              </View>
+
+              {/* Exchange Rate */}
+              <View style={styles.rateRow}>
+                <Text style={styles.rateLabel}>Exchange Rate</Text>
+                <Text style={styles.rateValue}>1 {fromCrypto} = {getExchangeRate()} {toCrypto}</Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Quick Price Cards */}
+        {topCryptos.map((crypto) => {
+          const isPositive = crypto.change24h >= 0;
+          return (
+            <View key={crypto.symbol} style={styles.priceCard}>
+              <View style={styles.priceCardTop}>
+                <Text style={styles.priceCardIcon}>{crypto.icon}</Text>
+                <View style={styles.priceCardChange}>
+                  <MaterialCommunityIcons
+                    name={isPositive ? 'trending-up' : 'trending-down'}
+                    size={14}
+                    color={isPositive ? colors.success : colors.error}
+                  />
+                  <Text style={[styles.priceCardChangeText, { color: isPositive ? colors.success : colors.error }]}>
+                    {isPositive ? '+' : ''}{crypto.change24h.toFixed(1)}%
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.priceCardName}>{crypto.name}</Text>
+              <Text style={styles.priceCardSymbol}>1 {crypto.symbol}</Text>
+              <Text style={styles.priceCardPrice}>
+                ${crypto.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </Text>
+            </View>
+          );
+        })}
       </ScrollView>
     </FadeInScreen>
   );
@@ -99,86 +238,76 @@ export default function HomeScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
-  container: {
-    padding: spacing.lg,
-    paddingBottom: 100,
-  },
-  card: {
+  container: { padding: spacing.md, paddingBottom: spacing.xl },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.lg },
+  headerIcon: {
+    width: 40, height: 40, borderRadius: 10,
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    justifyContent: 'center', alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: spacing.xs,
+  title: { fontSize: 22, fontWeight: '800', color: colors.text },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  calcCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20, padding: spacing.lg,
+    borderWidth: 1, borderColor: colors.border,
+    marginBottom: spacing.md,
   },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
+  label: { fontSize: 13, color: colors.textSecondary, fontWeight: '500', marginBottom: 8 },
+  selector: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surfaceLight, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1, borderColor: colors.border, marginBottom: 8,
   },
-  locationSection: {
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+  selectorIcon: { fontSize: 20, color: '#fff' },
+  selectorText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
+  pickerList: {
+    backgroundColor: colors.surfaceLight, borderRadius: 14,
+    borderWidth: 1, borderColor: colors.border, marginBottom: 8, overflow: 'hidden',
   },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  pickerItem: { paddingHorizontal: 14, paddingVertical: 12 },
+  pickerItemActive: { backgroundColor: colors.surfaceActive },
+  pickerItemText: { color: colors.text, fontSize: 14 },
+  amountInput: {
+    backgroundColor: colors.surfaceLight, borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: colors.border,
+    color: colors.text, fontSize: 20, fontWeight: '600',
     marginBottom: 4,
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  locationText: { fontSize: 13, color: colors.textSecondary },
-  locationDenied: { fontSize: 13, color: colors.error, marginVertical: 4 },
-  locationButton: {
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  locationButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-  actions: { gap: spacing.md },
-  primaryButton: {
+  swapRow: { alignItems: 'center', marginVertical: 12 },
+  swapButton: {
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
+      android: { elevation: 6 },
+    }),
     backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+  resultInput: {
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: colors.borderActive,
+    backgroundColor: colors.surfaceActive, marginBottom: 16,
   },
-  secondaryButton: {
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.primary,
+  resultText: { color: colors.text, fontSize: 20, fontWeight: '600' },
+  rateRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12,
   },
-  secondaryButtonText: {
-    color: colors.text,
-    fontWeight: '700',
-    fontSize: 16,
+  rateLabel: { fontSize: 13, color: colors.textMuted },
+  rateValue: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  priceCard: {
+    backgroundColor: colors.surface, borderRadius: 18,
+    padding: spacing.md, marginBottom: spacing.sm,
+    borderWidth: 1, borderColor: colors.border,
   },
+  priceCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  priceCardIcon: { fontSize: 24, color: '#fff' },
+  priceCardChange: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  priceCardChangeText: { fontSize: 13, fontWeight: '600' },
+  priceCardName: { fontSize: 16, fontWeight: '700', color: colors.text },
+  priceCardSymbol: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  priceCardPrice: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 8 },
 });
