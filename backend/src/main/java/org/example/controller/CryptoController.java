@@ -9,9 +9,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.example.entity.FavoriteCoin;
+import org.example.repository.FavoriteCoinRepository;
+import org.example.service.UserService;
+import org.example.security.entity.User;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/crypto")
@@ -21,6 +28,9 @@ public class CryptoController {
     
     @Value("${crypto.sell.discount.percent}")
     private double sellDiscountPercent;
+
+    private final FavoriteCoinRepository favoriteCoinRepository;
+    private final UserService userService;
 
     // List of supported cryptocurrencies for trading
     private static final List<CryptoInfo> SUPPORTED_CRYPTOS = List.of(
@@ -176,6 +186,43 @@ public class CryptoController {
             case "LTC": return 73.0;
             default: return 100.0;
         }
+    }
+
+    @GetMapping("/favorites")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<String>> getFavoriteCoins(Authentication authentication) {
+        User user = userService.findByEmail(authentication.getName());
+        List<String> favorites = favoriteCoinRepository.findByUser(user).stream()
+                .map(FavoriteCoin::getSymbol)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(favorites);
+    }
+
+    @PostMapping("/favorites/{symbol}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> addFavoriteCoin(Authentication authentication, @PathVariable String symbol) {
+        User user = userService.findByEmail(authentication.getName());
+        
+        if (favoriteCoinRepository.findByUser(user).size() >= 3) {
+            return ResponseEntity.badRequest().body("You can only have up to 3 favorite coins.");
+        }
+        
+        if (!favoriteCoinRepository.existsByUserAndSymbol(user, symbol)) {
+            FavoriteCoin favoriteCoin = new FavoriteCoin();
+            favoriteCoin.setUser(user);
+            favoriteCoin.setSymbol(symbol);
+            favoriteCoinRepository.save(favoriteCoin);
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/favorites/{symbol}")
+    @PreAuthorize("isAuthenticated()")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> removeFavoriteCoin(Authentication authentication, @PathVariable String symbol) {
+        User user = userService.findByEmail(authentication.getName());
+        favoriteCoinRepository.deleteByUserAndSymbol(user, symbol);
+        return ResponseEntity.ok().build();
     }
 
     // DTO Classes
