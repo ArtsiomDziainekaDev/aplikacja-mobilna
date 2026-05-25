@@ -1,4 +1,4 @@
-import type { OrderStatus, CryptoItem, OrderDTO } from '../types';
+import type { OrderStatus, CryptoItem, CryptoView, OrderDTO } from '../types';
 
 describe('types', () => {
   it('OrderStatus is string union', () => {
@@ -6,15 +6,32 @@ describe('types', () => {
     expect(s).toBe('COMPLETED');
   });
 
-  it('CryptoItem shape', () => {
+  it('CryptoItem shape includes priceChangePercent24h', () => {
     const c: CryptoItem = {
       id: '1',
       symbol: 'BTC',
       name: 'Bitcoin',
       marketPrice: 40000,
       sellPrice: 34000,
+      priceChangePercent24h: 1.5,
     };
     expect(c.symbol).toBe('BTC');
+    expect(c.priceChangePercent24h).toBe(1.5);
+  });
+
+  it('CryptoView extends CryptoItem with UI metadata', () => {
+    const v: CryptoView = {
+      id: '1',
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      marketPrice: 40000,
+      sellPrice: 34000,
+      priceChangePercent24h: 1.5,
+      icon: '₿',
+      chartColor: '#f7931a',
+      volume24h: 1_000_000,
+    };
+    expect(v.icon).toBe('₿');
   });
 
   it('OrderDTO shape', () => {

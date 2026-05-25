@@ -18,8 +18,7 @@
       "bundleIdentifier": "com.projectapi.mobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Aplikacja używa kamery do skanowania.",
-        "NSPhotoLibraryUsageDescription": "Aplikacja potrzebuje dostępu do galerii.",
-        "NSLocationWhenInUseUsageDescription": "Aplikacja używa lokalizacji do wyświetlania regionu."
+        "NSPhotoLibraryUsageDescription": "Aplikacja potrzebuje dostępu do galerii."
       }
     },
     "android": {
@@ -30,8 +29,7 @@
       "package": "com.projectapi.mobile",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -47,12 +45,6 @@
         {
           "photosPermission": "Aplikacja potrzebuje dostępu do zdjęć.",
           "cameraPermission": "Aplikacja potrzebuje dostępu do kamery."
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Aplikacja używa lokalizacji do wyświetlania regionu."
         }
       ],
       "expo-asset",
