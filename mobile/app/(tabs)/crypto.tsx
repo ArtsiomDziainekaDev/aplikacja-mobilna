@@ -154,7 +154,7 @@ export default function CryptoScreen(): React.JSX.Element {
   const isPositive = (activeCrypto?.priceChangePercent24h ?? 0) >= 0;
   const chartWidth = width - spacing.md * 2 - 8;
 
-  const renderHeader = useMemo(() => () => (
+  const listHeader = useMemo(() => (
     <View>
       <View style={styles.header}>
         <View style={styles.headerIcon}>
@@ -275,7 +275,7 @@ export default function CryptoScreen(): React.JSX.Element {
       <FlatList
         data={cryptos}
         keyExtractor={(item) => item.symbol}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={listHeader}
         renderItem={({ item, index }) => (
           <CoinRow
             item={item}

@@ -49,8 +49,10 @@ public class OrderService {
                 rate = apiRate != null ? apiRate : 1.0;
             }
         } catch (Exception e) {
-            // Jeśli API niedostępne, używamy podstawowych kursów
-            rate = getDefaultRate(currencyCode);
+            // Jeśli API niedostępne, używamy podstawowych kursów (krypto w USD, fiat do PLN)
+            rate = isCryptoCurrency(currencyCode)
+                ? getDefaultCryptoPriceUsd(currencyCode)
+                : getDefaultRate(currencyCode);
         }
         
         Order order = new Order();
@@ -87,8 +89,37 @@ public class OrderService {
         }
     }
 
+    // Zapasowe ceny krypto w USD, gdy Binance jest niedostępny.
+    // Wartości spójne z CryptoController.getDefaultPrice, żeby zamówienie nie dostało absurdalnej ceny.
+    private double getDefaultCryptoPriceUsd(String currencyCode) {
+        switch (currencyCode) {
+            case "BTC": return 43000.0;
+            case "ETH": return 2600.0;
+            case "BNB": return 310.0;
+            case "ADA": return 0.48;
+            case "SOL": return 105.0;
+            case "DOT": return 7.2;
+            case "LINK": return 14.5;
+            case "LTC": return 73.0;
+            case "XRP": return 0.62;
+            case "DOGE": return 0.12;
+            case "AVAX": return 30.0;
+            case "MATIC": return 0.85;
+            case "UNI": return 6.5;
+            case "ATOM": return 8.2;
+            case "FIL": return 5.5;
+            default: return 100.0;
+        }
+    }
+
+    // Lista wspieranych kryptowalut — musi być spójna z CryptoController.SUPPORTED_CRYPTOS.
+    private static final List<String> SUPPORTED_CRYPTO_SYMBOLS = List.of(
+        "BTC", "ETH", "BNB", "ADA", "SOL", "DOT", "LINK", "LTC",
+        "XRP", "DOGE", "AVAX", "MATIC", "UNI", "ATOM", "FIL"
+    );
+
     private boolean isCryptoCurrency(String currencyCode) {
-        return List.of("BTC", "ETH", "BNB", "ADA", "SOL", "DOT", "LINK", "LTC").contains(currencyCode);
+        return SUPPORTED_CRYPTO_SYMBOLS.contains(currencyCode);
     }
 
     @Transactional(readOnly = true)
