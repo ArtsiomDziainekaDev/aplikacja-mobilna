@@ -38,6 +38,13 @@ export interface CryptoItem {
   marketPrice: number;
   sellPrice: number;
   priceChangePercent24h: number;
+  volume24h?: number;
+}
+
+export interface CryptoView extends CryptoItem {
+  icon: string;
+  chartColor: string;
+  volume24h: number;
 }
 
 export interface OrderDTO {

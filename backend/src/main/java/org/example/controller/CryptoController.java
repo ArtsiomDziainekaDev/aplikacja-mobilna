@@ -41,7 +41,14 @@ public class CryptoController {
         new CryptoInfo("solana", "SOL", "Solana"),
         new CryptoInfo("polkadot", "DOT", "Polkadot"),
         new CryptoInfo("chainlink", "LINK", "Chainlink"),
-        new CryptoInfo("litecoin", "LTC", "Litecoin")
+        new CryptoInfo("litecoin", "LTC", "Litecoin"),
+        new CryptoInfo("ripple", "XRP", "Ripple"),
+        new CryptoInfo("dogecoin", "DOGE", "Dogecoin"),
+        new CryptoInfo("avalanche-2", "AVAX", "Avalanche"),
+        new CryptoInfo("matic-network", "MATIC", "Polygon"),
+        new CryptoInfo("uniswap", "UNI", "Uniswap"),
+        new CryptoInfo("cosmos", "ATOM", "Cosmos"),
+        new CryptoInfo("filecoin", "FIL", "Filecoin")
     );
 
     @GetMapping
@@ -50,7 +57,7 @@ public class CryptoController {
         List<CryptoResponse> cryptos = new ArrayList<>();
         
         try {
-            String url = "https://api.binance.com/api/v3/ticker/24hr?symbols=[\"BTCUSDT\",\"ETHUSDT\",\"BNBUSDT\",\"ADAUSDT\",\"SOLUSDT\",\"DOTUSDT\",\"LINKUSDT\",\"LTCUSDT\"]";
+            String url = "https://api.binance.com/api/v3/ticker/24hr?symbols=[\"BTCUSDT\",\"ETHUSDT\",\"BNBUSDT\",\"ADAUSDT\",\"SOLUSDT\",\"DOTUSDT\",\"LINKUSDT\",\"LTCUSDT\",\"XRPUSDT\",\"DOGEUSDT\",\"AVAXUSDT\",\"MATICUSDT\",\"UNIUSDT\",\"ATOMUSDT\",\"FILUSDT\"]";
             
             RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
@@ -78,6 +85,7 @@ public class CryptoController {
                         cryptoInfo.getName(),
                         getDefaultPrice(cryptoInfo.getSymbol()),
                         calculateSellPrice(getDefaultPrice(cryptoInfo.getSymbol())),
+                        0.0,
                         0.0
                     ));
                 }
@@ -134,6 +142,7 @@ public class CryptoController {
                     double marketPrice = item.get("lastPrice").asDouble();
                     double sellPrice = calculateSellPrice(marketPrice);
                     double priceChangePercent24h = item.has("priceChangePercent") ? item.get("priceChangePercent").asDouble() : 0.0;
+                    double volume24h = item.has("quoteVolume") ? item.get("quoteVolume").asDouble() : 0.0;
                     
                     return new CryptoResponse(
                         cryptoInfo.getId(),
@@ -141,7 +150,8 @@ public class CryptoController {
                         cryptoInfo.getName(),
                         marketPrice,
                         sellPrice,
-                        priceChangePercent24h
+                        priceChangePercent24h,
+                        volume24h
                     );
                 } catch (Exception e) {
                     logger.warn("Error parsing crypto data for {}: {}", cryptoInfo.getSymbol(), e.getMessage());
@@ -167,6 +177,7 @@ public class CryptoController {
                 cryptoInfo.getName(),
                 marketPrice,
                 calculateSellPrice(marketPrice),
+                0.0,
                 0.0
             ));
         }
@@ -174,7 +185,6 @@ public class CryptoController {
     }
     
     private double getDefaultPrice(String symbol) {
-        // These prices will only be used if the API fails
         switch (symbol) {
             case "BTC": return 43000.0;
             case "ETH": return 2600.0;
@@ -184,6 +194,13 @@ public class CryptoController {
             case "DOT": return 7.2;
             case "LINK": return 14.5;
             case "LTC": return 73.0;
+            case "XRP": return 0.62;
+            case "DOGE": return 0.12;
+            case "AVAX": return 30.0;
+            case "MATIC": return 0.85;
+            case "UNI": return 6.5;
+            case "ATOM": return 8.2;
+            case "FIL": return 5.5;
             default: return 100.0;
         }
     }
@@ -249,14 +266,16 @@ public class CryptoController {
         private double marketPrice;
         private double sellPrice;
         private double priceChangePercent24h;
+        private double volume24h;
 
-        public CryptoResponse(String id, String symbol, String name, double marketPrice, double sellPrice, double priceChangePercent24h) {
+        public CryptoResponse(String id, String symbol, String name, double marketPrice, double sellPrice, double priceChangePercent24h, double volume24h) {
             this.id = id;
             this.symbol = symbol;
             this.name = name;
             this.marketPrice = marketPrice;
             this.sellPrice = sellPrice;
             this.priceChangePercent24h = priceChangePercent24h;
+            this.volume24h = volume24h;
         }
 
         public String getId() { return id; }
@@ -265,6 +284,7 @@ public class CryptoController {
         public double getMarketPrice() { return marketPrice; }
         public double getSellPrice() { return sellPrice; }
         public double getPriceChangePercent24h() { return priceChangePercent24h; }
+        public double getVolume24h() { return volume24h; }
     }
 
     static class CryptoPriceResponse {

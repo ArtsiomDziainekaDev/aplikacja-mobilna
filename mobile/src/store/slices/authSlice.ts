@@ -20,9 +20,13 @@ export const checkAuth = createAsyncThunk(
     try {
       const response = await api.get<LoginResponse>('/api/auth/check');
       const d = response.data;
+      if (typeof d?.id !== 'number' || typeof d?.email !== 'string' || !d.email) {
+        await clearStoredToken();
+        return rejectWithValue('invalid_user_payload');
+      }
       return {
         user: {
-          id: d.id!,
+          id: d.id,
           email: d.email,
           role: d.roles?.length ? d.roles[0] : 'ROLE_USER',
         },
@@ -42,6 +46,9 @@ export const login = createAsyncThunk(
       const response = await api.post<LoginResponse>('/api/auth/signin', credentials);
       const { token, id, email, roles } = response.data;
       if (!token) return rejectWithValue('Brak tokenu w odpowiedzi');
+      if (typeof id !== 'number' || typeof email !== 'string' || !email) {
+        return rejectWithValue('Nieprawidłowa odpowiedź serwera (brak id/email)');
+      }
       await setStoredToken(token);
       await haptics.success();
       return {

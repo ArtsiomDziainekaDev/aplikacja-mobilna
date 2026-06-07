@@ -1,37 +1,38 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Dimensions,
   Platform,
   PanResponder,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { usePathname, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { logout } from '../store/slices/authSlice';
 import { colors } from '../theme/colors';
 
-const { width, height } = Dimensions.get('window');
 export const SIDEBAR_WIDTH = 240;
 
 interface NavItem {
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  path: string;
+  path: Href;
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Home', icon: 'home', path: '/' },
-  { label: 'Crypto', icon: 'chart-line', path: '/crypto' },
-  { label: 'News', icon: 'newspaper-variant-outline', path: '/news' },
-  { label: 'Profile', icon: 'account', path: '/profile' },
+  { label: 'Home', icon: 'home', path: '/(tabs)' },
+  { label: 'Crypto', icon: 'chart-line', path: '/(tabs)/crypto' },
+  { label: 'News', icon: 'newspaper-variant-outline', path: '/(tabs)/news' },
+  { label: 'Profile', icon: 'account', path: '/(tabs)/profile' },
 ];
+
+const ADMIN_NAV_ITEM: NavItem = { label: 'Admin', icon: 'shield-account', path: '/admin' };
 
 interface SidebarProps {
   isOpen: boolean;
@@ -39,21 +40,31 @@ interface SidebarProps {
   isDesktop: boolean;
 }
 
-export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): React.JSX.Element | null {
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((s: any) => s.auth);
+  const { user } = useAppSelector((s) => s.auth);
   const isAdmin = user?.role === 'ROLE_ADMIN';
   const insets = useSafeAreaInsets();
 
   const slideAnim = useRef(new Animated.Value(isDesktop ? 0 : -SIDEBAR_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
+  /**
+   * Trzymamy widoczność jawnie zamiast czytać Animated.Value._value (prywatne API).
+   * Dzięki temu w innej wersji RN warunek dalej działa, a po zakończeniu animacji
+   * zamknięcia overlay przestaje być w drzewie komponentów.
+   */
+  const [isVisible, setIsVisible] = useState(isOpen);
 
   useEffect(() => {
-    if (isDesktop) return;
+    if (isDesktop) {
+      setIsVisible(true);
+      return;
+    }
 
     if (isOpen) {
+      setIsVisible(true);
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
@@ -66,20 +77,25 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -SIDEBAR_WIDTH,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      return;
     }
+
+    const animation = Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: -SIDEBAR_WIDTH,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start(({ finished }) => {
+      if (finished) setIsVisible(false);
+    });
+    return () => animation.stop();
   }, [isOpen, isDesktop, slideAnim, overlayAnim]);
 
   const panResponder = useRef(
@@ -103,9 +119,8 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
     })
   ).current;
 
-  const handleNavClick = (path: string) => {
-    // router.push is better for tabs structure, but since we are changing layout, router.push works
-    router.push(path as any);
+  const handleNavClick = (path: Href) => {
+    router.push(path);
     if (!isDesktop) onClose();
   };
 
@@ -114,9 +129,12 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
     router.replace('/(auth)/login');
   };
 
-  const isActive = (path: string) => {
-    if (path === '/') return pathname === '/' || pathname === '/index';
-    return pathname.startsWith(path);
+  const isActive = (path: Href): boolean => {
+    const target = typeof path === 'string' ? path : (path as { pathname?: string }).pathname ?? '';
+    if (target === '/' || target === '/(tabs)') return pathname === '/' || pathname === '/index' || pathname === '/(tabs)';
+    const normalized = target.replace('/(tabs)', '');
+    if (!normalized) return false;
+    return pathname.startsWith(normalized) || pathname.startsWith(target);
   };
 
   const SidebarContent = (
@@ -135,7 +153,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
           const active = isActive(item.path);
           return (
             <TouchableOpacity
-              key={item.path}
+              key={item.label}
               style={[styles.navItem, active && styles.navItemActive]}
               onPress={() => handleNavClick(item.path)}
               activeOpacity={0.8}
@@ -154,16 +172,18 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
           <>
             <View style={styles.divider} />
             <TouchableOpacity
-              style={[styles.navItem, isActive('/admin') && styles.navItemActive]}
-              onPress={() => handleNavClick('/admin')}
+              style={[styles.navItem, isActive(ADMIN_NAV_ITEM.path) && styles.navItemActive]}
+              onPress={() => handleNavClick(ADMIN_NAV_ITEM.path)}
               activeOpacity={0.8}
             >
               <MaterialCommunityIcons
-                name="shield-account"
+                name={ADMIN_NAV_ITEM.icon}
                 size={20}
-                color={isActive('/admin') ? '#fff' : 'rgba(255,255,255,0.6)'}
+                color={isActive(ADMIN_NAV_ITEM.path) ? '#fff' : 'rgba(255,255,255,0.6)'}
               />
-              <Text style={[styles.navText, isActive('/admin') && styles.navTextActive]}>Admin</Text>
+              <Text style={[styles.navText, isActive(ADMIN_NAV_ITEM.path) && styles.navTextActive]}>
+                {ADMIN_NAV_ITEM.label}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -203,9 +223,8 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps) {
     );
   }
 
-  // Mobile layout uses Animated Modal-like overlay
-  if (!isOpen && (slideAnim as any)._value === -SIDEBAR_WIDTH) {
-    return null; // completely hidden
+  if (!isVisible) {
+    return null;
   }
 
   return (
@@ -303,8 +322,6 @@ const styles = StyleSheet.create({
   },
   navItemActive: {
     backgroundColor: colors.primary,
-    // In React Native we can't easily do linear gradients without expo-linear-gradient on normal views,
-    // so we use primary color, or a semi-transparent active background.
   },
   navText: {
     fontSize: 14,

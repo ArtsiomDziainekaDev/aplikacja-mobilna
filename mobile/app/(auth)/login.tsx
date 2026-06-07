@@ -150,7 +150,7 @@ export default function LoginScreen(): React.JSX.Element {
                     }}
                     activeOpacity={0.85}
                 >
-                  <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
+                  <Text style={styles.linkText}>Don&apos;t have an account? Sign Up</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>

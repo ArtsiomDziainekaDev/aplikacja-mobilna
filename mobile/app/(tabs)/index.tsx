@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,168 +16,169 @@ import FadeInScreen from '../../src/components/FadeInScreen';
 import { api } from '../../src/api/client';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
+import { useAppDispatch, useAppSelector } from '../../src/hooks/useRedux';
+import { fetchCrypto } from '../../src/store/slices/cryptoSlice';
+import { createOrder } from '../../src/store/slices/ordersSlice';
+import { getCryptoMeta } from '../../src/services/cryptoService';
 
-interface CryptoPrice {
+interface Currency {
   symbol: string;
   name: string;
   icon: string;
   price: number;
   change24h: number;
+  type: 'crypto' | 'fiat';
 }
 
-const CRYPTOS = [
-  { symbol: 'BTC', name: 'Bitcoin', icon: '₿', type: 'crypto' },
-  { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', type: 'crypto' },
-  { symbol: 'SOL', name: 'Solana', icon: '◎', type: 'crypto' },
-  { symbol: 'BNB', name: 'BNB', icon: '◆', type: 'crypto' },
-  { symbol: 'XRP', name: 'Ripple', icon: '✕', type: 'crypto' },
-  { symbol: 'ADA', name: 'Cardano', icon: '₳', type: 'crypto' },
-  { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', type: 'crypto' },
+const FIATS: Currency[] = [
+  { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0, type: 'fiat' },
+  { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0, type: 'fiat' },
+  { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0, type: 'fiat' },
+  { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0, type: 'fiat' },
 ];
 
-const FIATS = [
-  { symbol: 'USD', name: 'US Dollar', icon: '$', type: 'fiat' },
-  { symbol: 'EUR', name: 'Euro', icon: '€', type: 'fiat' },
-  { symbol: 'GBP', name: 'British Pound', icon: '£', type: 'fiat' },
-  { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', type: 'fiat' },
-];
-
-const ALL_CURRENCIES = [...CRYPTOS, ...FIATS];
+const REFRESH_INTERVAL_MS = 30_000;
+const MAX_FAVORITES = 3;
 
 export default function HomeScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
-  const [prices, setPrices] = useState<Record<string, CryptoPrice>>({});
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { list: cryptoList, loading: cryptoLoading } = useAppSelector((s) => s.crypto);
+  const { createLoading, error: orderError } = useAppSelector((s) => s.orders);
+
   const [fromCurrency, setFromCurrency] = useState('BTC');
   const [toCurrency, setToCurrency] = useState('ETH');
   const [fromAmount, setFromAmount] = useState('1');
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
-  const [isOrdering, setIsOrdering] = useState(false);
-  
-  // Favorites State
+
   const [favorites, setFavorites] = useState<string[]>(['BTC', 'ETH', 'SOL']);
   const [isEditingFavs, setIsEditingFavs] = useState(false);
 
   useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        const symbols = CRYPTOS.map((c) => c.symbol + 'USDT');
-        const response = await fetch(
-          `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`
-        );
-        const data = await response.json();
-        const priceMap: Record<string, CryptoPrice> = {};
-        data.forEach((item: any) => {
-          const symbol = item.symbol.replace('USDT', '');
-          const info = CRYPTOS.find((c) => c.symbol === symbol);
-          if (info) {
-            priceMap[symbol] = {
-              symbol,
-              name: info.name,
-              icon: info.icon,
-              price: parseFloat(item.lastPrice),
-              change24h: parseFloat(item.priceChangePercent),
-            };
-          }
-        });
+    dispatch(fetchCrypto());
+    const interval = setInterval(() => {
+      dispatch(fetchCrypto());
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [dispatch]);
 
-        // Add Fiat static rates
-        priceMap['USD'] = { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0 };
-        priceMap['EUR'] = { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0 };
-        priceMap['GBP'] = { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0 };
-        priceMap['PLN'] = { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0 };
-
-        setPrices(priceMap);
-      } catch {
-        setPrices({
-          BTC: { symbol: 'BTC', name: 'Bitcoin', icon: '₿', price: 62500, change24h: 2.5 },
-          ETH: { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', price: 4032, change24h: 1.8 },
-          SOL: { symbol: 'SOL', name: 'Solana', icon: '◎', price: 148, change24h: -0.5 },
-          USD: { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0 },
-          EUR: { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0 },
-          GBP: { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0 },
-          PLN: { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0 },
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  useEffect(() => {
+    let cancelled = false;
     const fetchFavorites = async () => {
       try {
-        const { data } = await api.get('/api/crypto/favorites');
-        if (data && data.length > 0) {
+        const { data } = await api.get<string[]>('/api/crypto/favorites');
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
           setFavorites(data);
         }
-      } catch (err) {
-        console.error('Failed to fetch favorites');
+      } catch {
+        /* zostawiamy domyślne BTC/ETH/SOL */
       }
     };
-
-    fetchPrices();
     fetchFavorites();
-    const interval = setInterval(fetchPrices, 30000);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; };
   }, []);
 
-  const calculateConversion = () => {
-    const from = prices[fromCurrency];
-    const to = prices[toCurrency];
-    if (!from || !to || !fromAmount) return '0';
-    return ((parseFloat(fromAmount) * from.price) / to.price).toFixed(8).replace(/\.?0+$/, '');
-  };
+  const cryptoCurrencies = useMemo<Currency[]>(
+    () =>
+      cryptoList.map((c) => ({
+        symbol: c.symbol,
+        name: c.name,
+        icon: c.icon,
+        price: c.marketPrice,
+        change24h: c.priceChangePercent24h,
+        type: 'crypto',
+      })),
+    [cryptoList]
+  );
 
-  const getExchangeRate = () => {
-    const from = prices[fromCurrency];
-    const to = prices[toCurrency];
-    if (!from || !to) return '...';
-    return (from.price / to.price).toFixed(6).replace(/\.?0+$/, '');
-  };
+  const allCurrencies = useMemo<Currency[]>(
+    () => [...cryptoCurrencies, ...FIATS],
+    [cryptoCurrencies]
+  );
 
-  const handleSwap = () => {
+  const pricesByCode = useMemo(() => {
+    const map = new Map<string, Currency>();
+    for (const c of allCurrencies) map.set(c.symbol, c);
+    return map;
+  }, [allCurrencies]);
+
+  const fromInfo = pricesByCode.get(fromCurrency);
+  const toInfo = pricesByCode.get(toCurrency);
+
+  const parsedAmount = Number.parseFloat(fromAmount.replace(',', '.'));
+  const isAmountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
+
+  const converted = useMemo(() => {
+    if (!fromInfo || !toInfo || !isAmountValid || toInfo.price === 0) return '0';
+    const value = (parsedAmount * fromInfo.price) / toInfo.price;
+    return value.toFixed(8).replace(/\.?0+$/, '');
+  }, [fromInfo, toInfo, isAmountValid, parsedAmount]);
+
+  const exchangeRate = useMemo(() => {
+    if (!fromInfo || !toInfo || toInfo.price === 0) return '...';
+    return (fromInfo.price / toInfo.price).toFixed(6).replace(/\.?0+$/, '');
+  }, [fromInfo, toInfo]);
+
+  const handleSwap = useCallback(() => {
     setFromCurrency(toCurrency);
     setToCurrency(fromCurrency);
-  };
+  }, [fromCurrency, toCurrency]);
 
-  const handlePlaceOrder = async () => {
-    setIsOrdering(true);
-    try {
-      const amount = parseFloat(calculateConversion());
-      await api.post('/api/orders', { currencyCode: toCurrency, amount });
-      alert('Order placed successfully!');
-    } catch (err) {
-      alert('Failed to place order.');
-    } finally {
-      setIsOrdering(false);
+  const handlePlaceOrder = useCallback(async () => {
+    if (!isAmountValid) {
+      Alert.alert('Invalid amount', 'Please enter a positive number.');
+      return;
     }
-  };
+    const targetAmount = Number.parseFloat(converted);
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+      Alert.alert('Invalid conversion', 'Conversion result is not a valid number.');
+      return;
+    }
+    const result = await dispatch(createOrder({ currencyCode: toCurrency, amount: targetAmount }));
+    if (createOrder.fulfilled.match(result)) {
+      Alert.alert('Order placed', `Created order #${result.payload.id} for ${result.payload.amount} ${result.payload.currencyCode}.`);
+    } else {
+      const message = (result.payload as string | undefined) ?? orderError ?? 'Failed to place order.';
+      Alert.alert('Order failed', message);
+    }
+  }, [dispatch, toCurrency, converted, isAmountValid, orderError]);
 
-  const handleRemoveFavorite = async (symbol: string) => {
+  const handleRemoveFavorite = useCallback(async (symbol: string) => {
     try {
       await api.delete(`/api/crypto/favorites/${symbol}`);
       setFavorites((prev) => prev.filter((f) => f !== symbol));
     } catch {
-      console.error('Failed to remove favorite');
+      /* best-effort: brak sieci nie powinien blokować UI */
     }
-  };
+  }, []);
 
-  const handleAddFavorite = async (symbol: string) => {
-    if (favorites.length >= 3) {
-      alert('Maximum 3 favorite coins allowed.');
+  const handleAddFavorite = useCallback(async (symbol: string) => {
+    if (favorites.length >= MAX_FAVORITES) {
+      Alert.alert('Limit reached', `Maximum ${MAX_FAVORITES} favorite coins allowed.`);
       return;
     }
     try {
       await api.post(`/api/crypto/favorites/${symbol}`);
-      setFavorites((prev) => [...prev, symbol]);
+      setFavorites((prev) => (prev.includes(symbol) ? prev : [...prev, symbol]));
     } catch {
-      console.error('Failed to add favorite');
+      /* best-effort */
     }
-  };
+  }, [favorites.length]);
 
-  const fromInfo = ALL_CURRENCIES.find((c) => c.symbol === fromCurrency);
-  const toInfo = ALL_CURRENCIES.find((c) => c.symbol === toCurrency);
-  const favoriteCryptos = favorites.map((s) => prices[s]).filter(Boolean);
-  const availableToAdd = CRYPTOS.filter((c) => !favorites.includes(c.symbol));
+  const favoriteCryptos = useMemo(
+    () => favorites
+      .map((s) => cryptoCurrencies.find((c) => c.symbol === s))
+      .filter((c): c is Currency => Boolean(c)),
+    [favorites, cryptoCurrencies]
+  );
+
+  const availableToAdd = useMemo(
+    () => cryptoCurrencies.filter((c) => !favorites.includes(c.symbol)),
+    [cryptoCurrencies, favorites]
+  );
+
+  const initialLoading = cryptoLoading && cryptoList.length === 0;
 
   return (
     <FadeInScreen>
@@ -185,7 +187,6 @@ export default function HomeScreen(): React.JSX.Element {
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 70 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerIcon}>
             <MaterialCommunityIcons name="calculator-variant" size={22} color={colors.textSecondary} />
@@ -196,13 +197,11 @@ export default function HomeScreen(): React.JSX.Element {
           </View>
         </View>
 
-        {/* Calculator Card */}
         <View style={styles.calcCard}>
-          {loading ? (
+          {initialLoading ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ paddingVertical: 40 }} />
           ) : (
             <>
-              {/* From */}
               <Text style={styles.label}>From</Text>
               <TouchableOpacity
                 style={styles.selector}
@@ -215,7 +214,7 @@ export default function HomeScreen(): React.JSX.Element {
               </TouchableOpacity>
               {showFromPicker && (
                 <View style={styles.pickerList}>
-                  {ALL_CURRENCIES.map((c) => (
+                  {allCurrencies.map((c) => (
                     <TouchableOpacity
                       key={c.symbol}
                       style={[styles.pickerItem, c.symbol === fromCurrency && styles.pickerItemActive]}
@@ -227,22 +226,23 @@ export default function HomeScreen(): React.JSX.Element {
                 </View>
               )}
               <TextInput
-                style={styles.amountInput}
+                style={[styles.amountInput, !isAmountValid && styles.amountInputInvalid]}
                 value={fromAmount}
                 onChangeText={setFromAmount}
                 keyboardType="decimal-pad"
                 placeholderTextColor={colors.textMuted}
                 placeholder="0.00"
               />
+              {!isAmountValid && (
+                <Text style={styles.errorText}>Enter a positive number</Text>
+              )}
 
-              {/* Swap */}
               <View style={styles.swapRow}>
                 <TouchableOpacity style={styles.swapButton} onPress={handleSwap} activeOpacity={0.8}>
                   <MaterialCommunityIcons name="swap-vertical" size={22} color="#fff" />
                 </TouchableOpacity>
               </View>
 
-              {/* To */}
               <Text style={styles.label}>To</Text>
               <TouchableOpacity
                 style={styles.selector}
@@ -255,7 +255,7 @@ export default function HomeScreen(): React.JSX.Element {
               </TouchableOpacity>
               {showToPicker && (
                 <View style={styles.pickerList}>
-                  {ALL_CURRENCIES.map((c) => (
+                  {allCurrencies.map((c) => (
                     <TouchableOpacity
                       key={c.symbol}
                       style={[styles.pickerItem, c.symbol === toCurrency && styles.pickerItemActive]}
@@ -267,23 +267,21 @@ export default function HomeScreen(): React.JSX.Element {
                 </View>
               )}
               <View style={styles.resultInput}>
-                <Text style={styles.resultText}>{calculateConversion()}</Text>
+                <Text style={styles.resultText}>{converted}</Text>
               </View>
 
-              {/* Exchange Rate */}
               <View style={styles.rateRow}>
                 <Text style={styles.rateLabel}>Exchange Rate</Text>
-                <Text style={styles.rateValue}>1 {fromCurrency} = {getExchangeRate()} {toCurrency}</Text>
+                <Text style={styles.rateValue}>1 {fromCurrency} = {exchangeRate} {toCurrency}</Text>
               </View>
 
-              {/* Place Order Button */}
               <TouchableOpacity
-                style={[styles.placeOrderBtn, isOrdering && { opacity: 0.7 }]}
+                style={[styles.placeOrderBtn, (createLoading || !isAmountValid) && { opacity: 0.7 }]}
                 onPress={handlePlaceOrder}
-                disabled={isOrdering}
+                disabled={createLoading || !isAmountValid}
                 activeOpacity={0.8}
               >
-                {isOrdering ? (
+                {createLoading ? (
                   <ActivityIndicator color="#000" size="small" />
                 ) : (
                   <>
@@ -296,7 +294,6 @@ export default function HomeScreen(): React.JSX.Element {
           )}
         </View>
 
-        {/* Favorite Coins Header */}
         <View style={styles.favHeader}>
           <Text style={styles.favTitle}>Favorite Coins</Text>
           <TouchableOpacity
@@ -307,7 +304,6 @@ export default function HomeScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
-        {/* Favorite Coins List */}
         <View style={styles.favGrid}>
           {favoriteCryptos.map((crypto) => {
             const isPositive = crypto.change24h >= 0;
@@ -347,17 +343,17 @@ export default function HomeScreen(): React.JSX.Element {
             );
           })}
 
-          {isEditingFavs && favorites.length < 3 && availableToAdd.length > 0 && (
+          {isEditingFavs && favorites.length < MAX_FAVORITES && availableToAdd.length > 0 && (
             <View style={styles.addFavCard}>
               <Text style={styles.addFavText}>Add Coin</Text>
-              {availableToAdd.map(c => (
+              {availableToAdd.map((c) => (
                 <TouchableOpacity
                   key={c.symbol}
                   style={styles.addFavItem}
                   onPress={() => handleAddFavorite(c.symbol)}
                 >
                   <MaterialCommunityIcons name="plus" size={16} color={colors.text} />
-                  <Text style={styles.addFavItemText}>{c.icon} {c.symbol}</Text>
+                  <Text style={styles.addFavItemText}>{getCryptoMeta(c.symbol).icon} {c.symbol}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -408,6 +404,8 @@ const styles = StyleSheet.create({
     color: colors.text, fontSize: 20, fontWeight: '600',
     marginBottom: 4,
   },
+  amountInputInvalid: { borderColor: colors.error },
+  errorText: { color: colors.error, fontSize: 12, marginBottom: 4 },
   swapRow: { alignItems: 'center', marginVertical: 12 },
   swapButton: {
     width: 44, height: 44, borderRadius: 22,

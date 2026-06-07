@@ -19,7 +19,11 @@ const initialState: OrdersState = {
   createLoading: false,
 };
 
-export const fetchMyOrders = createAsyncThunk(
+export const fetchMyOrders = createAsyncThunk<
+  { data: OrderDTO[]; fromCache: boolean },
+  void,
+  { rejectValue: string }
+>(
   'orders/fetchMy',
   async (_, { rejectWithValue }) => {
     try {
@@ -28,23 +32,35 @@ export const fetchMyOrders = createAsyncThunk(
       return { data, fromCache: false };
     } catch (e) {
       const cached = await offlineCache.getOrders();
-      if (cached && Array.isArray(cached) && cached.length >= 0) {
-        return { data: cached as OrderDTO[], fromCache: true };
+      if (cached.length > 0) {
+        return { data: cached, fromCache: true };
       }
       return rejectWithValue(e instanceof Error ? e.message : 'Błąd pobierania zamówień');
     }
   }
 );
 
-export const createOrder = createAsyncThunk(
+export const createOrder = createAsyncThunk<OrderDTO, CreateOrderRequest, { rejectValue: string }>(
   'orders/create',
-  async (body: CreateOrderRequest, { rejectWithValue }) => {
+  async (body, { rejectWithValue }) => {
+    if (!body.currencyCode || !Number.isFinite(body.amount) || body.amount <= 0) {
+      await haptics.error();
+      return rejectWithValue('Nieprawidłowa kwota zamówienia');
+    }
     try {
       const { data } = await api.post<OrderDTO>('/api/orders', body);
       await haptics.success();
       return data;
     } catch (e) {
       await haptics.error();
+      if (e && typeof e === 'object' && 'response' in e) {
+        const res = (e as { response?: { data?: unknown } }).response;
+        const data = res?.data;
+        if (typeof data === 'string' && data.trim()) return rejectWithValue(data.trim());
+        if (data && typeof data === 'object' && typeof (data as { message?: string }).message === 'string') {
+          return rejectWithValue((data as { message: string }).message);
+        }
+      }
       return rejectWithValue(e instanceof Error ? e.message : 'Błąd tworzenia zamówienia');
     }
   }

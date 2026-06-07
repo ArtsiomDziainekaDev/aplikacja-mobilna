@@ -1,32 +1,40 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../api/client';
 import { offlineCache } from '../../cache/offlineCache';
-import type { CryptoItem } from '../../types';
+import { fetchCryptoList, toCryptoView } from '../../services/cryptoService';
+import type { CryptoItem, CryptoView } from '../../types';
 
 interface CryptoState {
-  list: CryptoItem[];
+  list: CryptoView[];
   loading: boolean;
   error: string | null;
-  fromCache?: boolean;
+  fromCache: boolean;
+  lastUpdated: number | null;
 }
 
 const initialState: CryptoState = {
   list: [],
   loading: false,
   error: null,
+  fromCache: false,
+  lastUpdated: null,
 };
 
-export const fetchCrypto = createAsyncThunk(
+interface FetchResult {
+  data: CryptoItem[];
+  fromCache: boolean;
+}
+
+export const fetchCrypto = createAsyncThunk<FetchResult, void, { rejectValue: string }>(
   'crypto/fetch',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get<CryptoItem[]>('/api/crypto');
+      const data = await fetchCryptoList();
       await offlineCache.setCrypto(data);
       return { data, fromCache: false };
     } catch (e) {
       const cached = await offlineCache.getCrypto();
-      if (cached && Array.isArray(cached) && cached.length > 0) {
-        return { data: cached as CryptoItem[], fromCache: true };
+      if (cached.length > 0) {
+        return { data: cached, fromCache: true };
       }
       return rejectWithValue(e instanceof Error ? e.message : 'Błąd pobierania kryptowalut');
     }
@@ -36,7 +44,11 @@ export const fetchCrypto = createAsyncThunk(
 const cryptoSlice = createSlice({
   name: 'crypto',
   initialState,
-  reducers: {},
+  reducers: {
+    clearCryptoError: (state) => {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchCrypto.pending, (state) => {
@@ -45,15 +57,17 @@ const cryptoSlice = createSlice({
       })
       .addCase(fetchCrypto.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload.data;
+        state.list = action.payload.data.map(toCryptoView);
         state.fromCache = action.payload.fromCache;
+        state.lastUpdated = Date.now();
         state.error = null;
       })
       .addCase(fetchCrypto.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Błąd';
+        state.error = action.payload ?? 'Błąd pobierania kryptowalut';
       });
   },
 });
 
+export const { clearCryptoError } = cryptoSlice.actions;
 export default cryptoSlice.reducer;

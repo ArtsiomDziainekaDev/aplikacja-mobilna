@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  useWindowDimensions,
   Animated,
   ActivityIndicator,
 } from 'react-native';
@@ -20,21 +19,14 @@ import FadeInScreen from '../../src/components/FadeInScreen';
 import haptics from '../../src/utils/haptics';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
+import { getCryptoMeta } from '../../src/services/cryptoService';
 
-const HOLDINGS = [
-  { symbol: 'BTC', icon: '₿', amount: 1.75, value: 109375, color: '#f7931a' },
-  { symbol: 'ETH', icon: 'Ξ', amount: 8.2, value: 33062, color: '#627eea' },
-  { symbol: 'SOL', icon: '◎', amount: 120, value: 17760, color: '#00e5a0' },
-];
-
-const MOCK_ACTIVITY = [
-  { type: 'Bought', symbol: 'BTC', date: '2026-05-05 14:30', value: 31250 },
-  { type: 'Sold', symbol: 'ETH', date: '2026-05-04 09:15', value: 10080 },
-  { type: 'Bought', symbol: 'SOL', date: '2026-05-05 16:45', value: 7400 },
-];
-
-const TOTAL_PORTFOLIO = 160197;
-const TOTAL_PROFIT = 8750;
+interface Holding {
+  symbol: string;
+  icon: string;
+  amount: number;
+  value: number;
+}
 
 function statusStyle(s: OrderStatus): { bg: string; color: string } {
   switch (s) {
@@ -60,12 +52,39 @@ function statusLabel(s: OrderStatus): string {
   }
 }
 
+/**
+ * Składamy portfel z faktycznie zrealizowanych zamówień. Backend nie zwraca
+ * pola side/type (buy/sell), więc traktujemy każde COMPLETED zamówienie jako
+ * zakup (najczęstszy flow w tej aplikacji). Jeżeli model OrderDTO dostanie
+ * `side`, wystarczy tu zmienić znak `amount`.
+ */
+function buildHoldings(orders: OrderDTO[]): Holding[] {
+  const map = new Map<string, Holding>();
+  for (const o of orders) {
+    if (o.status !== 'COMPLETED') continue;
+    const meta = getCryptoMeta(o.currencyCode);
+    const current = map.get(o.currencyCode);
+    if (current) {
+      current.amount += o.amount;
+      current.value += o.totalPrice ?? 0;
+    } else {
+      map.set(o.currencyCode, {
+        symbol: o.currencyCode,
+        icon: meta.icon,
+        amount: o.amount,
+        value: o.totalPrice ?? 0,
+      });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.value - a.value);
+}
+
 function OrderCard({ item, index }: { item: OrderDTO; index: number }): React.JSX.Element {
   const { bg, color } = statusStyle(item.status);
   const date = item.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
-  
+
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
@@ -76,18 +95,12 @@ function OrderCard({ item, index }: { item: OrderDTO; index: number }): React.JS
     ]).start();
   }, [opacity, translateY, index]);
 
-  const isBuy = (item.totalPrice ?? 0) > 0;
-
   return (
     <Animated.View style={[styles.orderCard, { opacity, transform: [{ translateY }] }]}>
       <View style={styles.orderCardHeader}>
         <View style={styles.headerLeft}>
-          <View style={[styles.typeIcon, { backgroundColor: isBuy ? colors.successLight : colors.errorLight }]}>
-            <MaterialCommunityIcons
-              name={isBuy ? 'trending-up' : 'trending-down'}
-              size={16}
-              color={isBuy ? colors.success : colors.error}
-            />
+          <View style={styles.typeIcon}>
+            <MaterialCommunityIcons name="cart-outline" size={16} color={colors.primary} />
           </View>
           <View>
             <Text style={styles.orderId}>#ORD-{String(item.id).padStart(3, '0')}</Text>
@@ -141,11 +154,29 @@ export default function ProfileScreen(): React.JSX.Element {
     dispatch(fetchMyOrders());
   }, [dispatch]);
 
+  /**
+   * Pobieramy zamówienia od razu — portfolio jest liczone z myOrders,
+   * więc to pojedyncze źródło prawdy dla obu zakładek.
+   */
   useEffect(() => {
-    if (activeTab === 'orders') {
-      loadOrders();
-    }
-  }, [activeTab, loadOrders]);
+    loadOrders();
+  }, [loadOrders]);
+
+  const holdings = useMemo(() => buildHoldings(myOrders), [myOrders]);
+  const recentOrders = useMemo(
+    () => [...myOrders]
+      .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+      .slice(0, 5),
+    [myOrders]
+  );
+  const totalPortfolio = useMemo(
+    () => holdings.reduce((sum, h) => sum + h.value, 0),
+    [holdings]
+  );
+  const completedCount = useMemo(
+    () => myOrders.filter((o) => o.status === 'COMPLETED').length,
+    [myOrders]
+  );
 
   const handleLogout = async (): Promise<void> => {
     await haptics.warning();
@@ -186,9 +217,9 @@ export default function ProfileScreen(): React.JSX.Element {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {user?.email?.split('@')[0] ?? 'John Crypto'}
+                {user?.email?.split('@')[0] ?? 'Guest'}
               </Text>
-              <Text style={styles.email}>{user?.email ?? 'john.crypto@example.com'}</Text>
+              <Text style={styles.email}>{user?.email ?? 'Not signed in'}</Text>
             </View>
             <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7}>
               <MaterialCommunityIcons name="cog" size={20} color={colors.textMuted} />
@@ -201,15 +232,11 @@ export default function ProfileScreen(): React.JSX.Element {
               <MaterialCommunityIcons name="check-circle" size={12} color={colors.success} />
               <Text style={styles.badgeVerifiedText}>Verified Account</Text>
             </View>
-            {user?.role ? (
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{user.role.replace('ROLE_', '')}</Text>
-              </View>
-            ) : (
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>Pro Trader</Text>
-              </View>
-            )}
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>
+                {user?.role ? user.role.replace('ROLE_', '') : 'Guest'}
+              </Text>
+            </View>
           </View>
 
           {/* Stats */}
@@ -220,26 +247,22 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.statLabelText}>Total Portfolio</Text>
               </View>
               <Text style={styles.statValue}>
-                ${TOTAL_PORTFOLIO.toLocaleString()}
+                ${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </Text>
             </View>
             <View style={[styles.stat, styles.statBorder]}>
               <View style={styles.statLabel}>
-                <MaterialCommunityIcons name="trending-up" size={13} color={colors.textMuted} />
-                <Text style={styles.statLabelText}>Total Profit</Text>
+                <MaterialCommunityIcons name="check-circle-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.statLabelText}>Completed</Text>
               </View>
-              <Text style={[styles.statValue, { color: colors.success }]}>
-                +${TOTAL_PROFIT.toLocaleString()}
-              </Text>
+              <Text style={styles.statValue}>{completedCount}</Text>
             </View>
             <View style={[styles.stat, styles.statBorder]}>
               <View style={styles.statLabel}>
-                <MaterialCommunityIcons name="percent" size={13} color={colors.textMuted} />
-                <Text style={styles.statLabelText}>Profit %</Text>
+                <MaterialCommunityIcons name="receipt" size={13} color={colors.textMuted} />
+                <Text style={styles.statLabelText}>Orders</Text>
               </View>
-              <Text style={[styles.statValue, { color: colors.success }]}>
-                +7.5%
-              </Text>
+              <Text style={styles.statValue}>{myOrders.length}</Text>
             </View>
           </View>
         </Animated.View>
@@ -270,58 +293,81 @@ export default function ProfileScreen(): React.JSX.Element {
         {activeTab === 'portfolio' ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Holdings</Text>
-            <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
-              {HOLDINGS.map((h, index) => (
-                <View 
-                  key={h.symbol} 
-                  style={[
-                    styles.holdingRow, 
-                    index < HOLDINGS.length - 1 && styles.borderBottom
-                  ]}
-                >
-                  <View style={styles.holdingInfoWrapper}>
-                    <Text style={styles.holdingIconPlain}>{h.icon}</Text>
-                    <View style={styles.holdingInfo}>
-                      <Text style={styles.holdingSymbol}>{h.symbol}</Text>
-                      <Text style={styles.holdingAmount}>{h.amount} {h.symbol}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.holdingValue}>${h.value.toLocaleString()}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>Recent Activity</Text>
-            <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
-              {MOCK_ACTIVITY.map((activity, index) => {
-                const isBuy = activity.type === 'Bought';
-                return (
-                  <View 
-                    key={index} 
+            {loading && myOrders.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : holdings.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="wallet-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No completed orders yet</Text>
+                <Text style={styles.emptySubtext}>Place an order on the calculator screen to build your portfolio</Text>
+              </View>
+            ) : (
+              <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
+                {holdings.map((h, index) => (
+                  <View
+                    key={h.symbol}
                     style={[
-                      styles.holdingRow, 
-                      index < MOCK_ACTIVITY.length - 1 && styles.borderBottom
+                      styles.holdingRow,
+                      index < holdings.length - 1 && styles.borderBottom,
                     ]}
                   >
                     <View style={styles.holdingInfoWrapper}>
-                      <MaterialCommunityIcons
-                        name={isBuy ? 'trending-up' : 'trending-down'}
-                        size={20}
-                        color={isBuy ? colors.success : colors.error}
-                        style={{ marginRight: 12, width: 24, textAlign: 'center' }}
-                      />
+                      <Text style={styles.holdingIconPlain}>{h.icon}</Text>
                       <View style={styles.holdingInfo}>
-                        <Text style={styles.holdingSymbol}>{activity.type} {activity.symbol}</Text>
-                        <Text style={styles.holdingAmount}>{activity.date}</Text>
+                        <Text style={styles.holdingSymbol}>{h.symbol}</Text>
+                        <Text style={styles.holdingAmount}>{h.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} {h.symbol}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.holdingValue, { color: isBuy ? colors.success : colors.error }]}>
-                      {isBuy ? '' : ''}${activity.value.toLocaleString()}
-                    </Text>
+                    <Text style={styles.holdingValue}>${h.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
                   </View>
-                );
-              })}
-            </View>
+                ))}
+              </View>
+            )}
+
+            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>Recent Activity</Text>
+            {recentOrders.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="history" size={40} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No recent activity</Text>
+              </View>
+            ) : (
+              <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
+                {recentOrders.map((order, index) => {
+                  const meta = getCryptoMeta(order.currencyCode);
+                  const statusInfo = statusStyle(order.status);
+                  const dateStr = order.createdAt
+                    ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                  return (
+                    <View
+                      key={order.id}
+                      style={[
+                        styles.holdingRow,
+                        index < recentOrders.length - 1 && styles.borderBottom,
+                      ]}
+                    >
+                      <View style={styles.holdingInfoWrapper}>
+                        <Text style={styles.holdingIconPlain}>{meta.icon}</Text>
+                        <View style={styles.holdingInfo}>
+                          <Text style={styles.holdingSymbol}>Order {order.currencyCode}</Text>
+                          <Text style={styles.holdingAmount}>{dateStr}</Text>
+                        </View>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.holdingValue}>
+                          ${(order.totalPrice ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </Text>
+                        <Text style={[styles.holdingAmount, { color: statusInfo.color }]}>
+                          {statusLabel(order.status)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.section}>
@@ -396,7 +442,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: 20,
     padding: spacing.lg, borderWidth: 1, borderColor: colors.border,
     marginBottom: spacing.md,
-    // Removed maxWidth to match the frontend and allow it to expand properly
     width: '100%',
   },
   avatarWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
@@ -495,7 +540,8 @@ const styles = StyleSheet.create({
   holdingAmount: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   holdingValue: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  // Order styles
+  emptySubtext: { color: colors.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center', paddingHorizontal: spacing.md },
+
   orderCard: {
     backgroundColor: colors.surface, borderRadius: 18,
     padding: spacing.md, marginBottom: spacing.sm,
@@ -509,6 +555,7 @@ const styles = StyleSheet.create({
   typeIcon: {
     width: 32, height: 32, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(233,30,140,0.12)',
   },
   orderId: { fontSize: 14, fontWeight: '700', color: colors.text },
   currencyCode: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
