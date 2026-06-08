@@ -2,12 +2,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import cryptoReducer from './slices/cryptoSlice';
 import ordersReducer from './slices/ordersSlice';
+import profileReducer from './slices/profileSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     crypto: cryptoReducer,
     orders: ordersReducer,
+    profile: profileReducer,
   },
 });
 
