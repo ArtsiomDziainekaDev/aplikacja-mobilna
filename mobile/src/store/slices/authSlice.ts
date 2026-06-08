@@ -10,6 +10,7 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isAdmin: false,
+  authChecked: false,
 };
 
 export const checkAuth = createAsyncThunk(
@@ -138,6 +139,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.isAdmin = action.payload.user.role === 'ROLE_ADMIN';
         state.error = null;
+        state.authChecked = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -166,6 +168,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.isAdmin = action.payload.user.role === 'ROLE_ADMIN';
         state.error = null;
+        state.authChecked = true;
       })
       .addCase(checkAuth.rejected, (state) => {
         state.loading = false;
@@ -174,6 +177,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isAdmin = false;
         state.error = null;
+        state.authChecked = true;
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;

@@ -7,9 +7,9 @@ import { useAppSelector } from '../src/hooks/useRedux';
  * Ekran startowy — przekierowuje do logowania lub do zakładek w zależności od stanu auth.
  */
 export default function Index(): React.JSX.Element {
-  const { loading, isAuthenticated } = useAppSelector((s) => s.auth);
+  const { authChecked, isAuthenticated } = useAppSelector((s) => s.auth);
 
-  if (loading) {
+  if (!authChecked) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#6366f1" />

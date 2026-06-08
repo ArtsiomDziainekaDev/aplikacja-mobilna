@@ -131,14 +131,13 @@ const profileSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder
-      .addCase(loadProfile.fulfilled, (state, action) => {
-        state.settings = action.payload;
-        state.loaded = true;
-      })
-      .addCase(saveProfile.fulfilled, (state, action) => {
-        state.settings = action.payload;
-      });
+    // saveProfile only persists the current settings to storage; it must not
+    // write a new settings object back into state, otherwise the reference
+    // change retriggers the auto-save effect in SettingsScreen and loops.
+    builder.addCase(loadProfile.fulfilled, (state, action) => {
+      state.settings = action.payload;
+      state.loaded = true;
+    });
   },
 });
 

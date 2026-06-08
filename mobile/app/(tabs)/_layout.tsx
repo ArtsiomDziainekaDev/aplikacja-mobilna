@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -9,12 +9,23 @@ import { colors } from '../../src/theme/colors';
 import Sidebar, { SIDEBAR_WIDTH } from '../../src/components/Sidebar';
 
 export default function MainLayout(): React.JSX.Element {
-  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const { isAuthenticated, authChecked } = useAppSelector((s) => s.auth);
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const insets = useSafeAreaInsets();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Wait for the initial token check before deciding. Without this, a hard load
+  // of a deep route (e.g. /settings) redirects to /login because checkAuth has
+  // not resolved yet on the first render.
+  if (!authChecked) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
@@ -50,6 +61,12 @@ export default function MainLayout(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     flexDirection: 'row',

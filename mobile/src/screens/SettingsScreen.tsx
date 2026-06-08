@@ -207,6 +207,7 @@ export default function SettingsScreen(): React.JSX.Element {
     if (!loaded) dispatch(loadProfile());
   }, [dispatch, loaded]);
 
+
   const commitSettings = useCallback(
     (nextSettings: ProfileSettings) => {
       dispatch(updateSettings(nextSettings));
