@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import FadeInScreen from '../src/components/FadeInScreen';
@@ -231,6 +231,8 @@ const LANGUAGE_OPTIONS: PickerOption<AppLanguage>[] = [
   { label: '🇵🇱 Polski', value: 'pl' },
 ];
 
+const EDIT_PROFILE_ROUTE = '/edit-profile' as Href;
+
 function currencyLabel(code: CurrencyDisplayCode): string {
   return CURRENCY_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
@@ -245,6 +247,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const { settings, loaded } = useAppSelector((s) => s.profile);
+  const { privacy } = settings;
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -272,7 +275,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handleEditProfile = useCallback(() => {
     void haptics.lightTap();
-    router.push('/edit-profile');
+    router.push(EDIT_PROFILE_ROUTE);
   }, []);
 
   const handleChangePassword = useCallback(() => {
@@ -281,10 +284,10 @@ export default function SettingsScreen(): React.JSX.Element {
   }, []);
 
   const handlePrivacyToggle = useCallback(
-    (key: keyof typeof settings.privacy) => {
-      dispatch(updatePrivacy({ [key]: !settings.privacy[key] }));
+    (key: keyof typeof privacy) => {
+      dispatch(updatePrivacy({ [key]: !privacy[key] }));
     },
-    [dispatch, settings.privacy],
+    [dispatch, privacy],
   );
 
   /* Section header animation */

@@ -58,7 +58,7 @@ function statusLabel(s: OrderStatus, t: (key: TranslationKey) => string): string
     case 'CONFIRMED': return t('admin.confirmed');
     case 'IN_PROGRESS': return t('admin.inProgress');
     case 'READY_FOR_PICKUP': return t('admin.readyForPickup');
-    default: return s.replace(/_/g, ' ');
+    default: return String(s).replace(/_/g, ' ');
   }
 }
 
