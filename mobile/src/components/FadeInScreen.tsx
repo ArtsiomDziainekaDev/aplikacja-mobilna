@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewStyle } from 'react-native';
+import { Animated, Platform, StyleSheet, View, ViewStyle } from 'react-native';
 
 type FadeInScreenProps = {
   children: React.ReactNode;
@@ -8,16 +8,19 @@ type FadeInScreenProps = {
   translateY?: number;
 };
 
+const isWeb = Platform.OS === 'web';
+
 export default function FadeInScreen({
   children,
   style,
   duration = 280,
   translateY = 12,
 }: FadeInScreenProps): React.JSX.Element {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const offsetY = useRef(new Animated.Value(translateY)).current;
+  const opacity = useRef(new Animated.Value(isWeb ? 1 : 0)).current;
+  const offsetY = useRef(new Animated.Value(isWeb ? 0 : translateY)).current;
 
   useEffect(() => {
+    if (isWeb) return;
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
@@ -31,6 +34,10 @@ export default function FadeInScreen({
       }),
     ]).start();
   }, [duration, opacity, offsetY]);
+
+  if (isWeb) {
+    return <View style={[styles.container, style]}>{children}</View>;
+  }
 
   return (
     <Animated.View

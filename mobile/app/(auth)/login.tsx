@@ -18,6 +18,7 @@ import { useConnectivity } from '../../src/hooks/useConnectivity';
 import { getBaseURL } from '../../src/api/client';
 import haptics from '../../src/utils/haptics';
 import FadeInScreen from '../../src/components/FadeInScreen';
+import AuthLanguageSelector from '../../src/components/AuthLanguageSelector';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 import { isTranslationKey, useI18n } from '../../src/i18n';
@@ -107,6 +108,7 @@ export default function LoginScreen(): React.JSX.Element {
                   },
                 ]}
             >
+              <AuthLanguageSelector />
               <Text style={styles.title}>{t('auth.signIn')}</Text>
               {errorText ? (
                   <>

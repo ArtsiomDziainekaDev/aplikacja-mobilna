@@ -15,13 +15,13 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import FadeInScreen from '../src/components/FadeInScreen';
-import haptics from '../src/utils/haptics';
-import { colors } from '../src/theme/colors';
-import { spacing } from '../src/theme/spacing';
-import { useAppDispatch, useAppSelector } from '../src/hooks/useRedux';
-import { loadProfile, saveProfile, updateSettings } from '../src/store/slices/profileSlice';
-import { useI18n } from '../src/i18n';
+import FadeInScreen from '../components/FadeInScreen';
+import haptics from '../utils/haptics';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
+import { loadProfile, saveProfile, updateSettings } from '../store/slices/profileSlice';
+import { useI18n } from '../i18n';
 
 export default function EditProfileScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();

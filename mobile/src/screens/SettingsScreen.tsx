@@ -8,26 +8,27 @@ import {
   Switch,
   Animated,
   Modal,
+  Platform,
   Pressable,
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import FadeInScreen from '../src/components/FadeInScreen';
-import haptics from '../src/utils/haptics';
-import { colors } from '../src/theme/colors';
-import { spacing } from '../src/theme/spacing';
-import { useAppDispatch, useAppSelector } from '../src/hooks/useRedux';
-import { logout } from '../src/store/slices/authSlice';
+import FadeInScreen from '../components/FadeInScreen';
+import haptics from '../utils/haptics';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
+import { logout } from '../store/slices/authSlice';
 import {
   loadProfile,
   saveProfile,
   updateSettings,
   updateNotifications,
   updatePrivacy,
-} from '../src/store/slices/profileSlice';
-import type { CurrencyDisplayCode, AppLanguage } from '../src/types';
-import { useI18n } from '../src/i18n';
+} from '../store/slices/profileSlice';
+import type { CurrencyDisplayCode, AppLanguage } from '../types';
+import { useI18n } from '../i18n';
 
 interface PickerOption<T extends string> {
   label: string;
@@ -54,7 +55,10 @@ function PickerModal<T extends string>({
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const modalScale = useRef(new Animated.Value(0.96)).current;
 
+  const isWeb = Platform.OS === 'web';
+
   useEffect(() => {
+    if (isWeb) return;
     if (visible) {
       Animated.parallel([
         Animated.timing(modalOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
@@ -64,12 +68,17 @@ function PickerModal<T extends string>({
       modalOpacity.setValue(0);
       modalScale.setValue(0.96);
     }
-  }, [visible, modalOpacity, modalScale]);
+  }, [visible, modalOpacity, modalScale, isWeb]);
+
+  const ModalBody = isWeb ? View : Animated.View;
+  const modalBodyStyle = isWeb
+    ? styles.modalContent
+    : [styles.modalContent, { opacity: modalOpacity, transform: [{ scale: modalScale }] }];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Animated.View style={[styles.modalContent, { opacity: modalOpacity, transform: [{ scale: modalScale }] }]}>
+        <ModalBody style={modalBodyStyle}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>{title}</Text>
             <View style={styles.pickerList}>
@@ -100,7 +109,7 @@ function PickerModal<T extends string>({
               <Text style={styles.modalCancelText}>{cancelLabel}</Text>
             </TouchableOpacity>
           </Pressable>
-        </Animated.View>
+        </ModalBody>
       </Pressable>
     </Modal>
   );
@@ -229,15 +238,6 @@ export default function SettingsScreen(): React.JSX.Element {
     },
     [dispatch, privacy],
   );
-
-  const headerAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(headerAnim, {
-      toValue: 1,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
-  }, [headerAnim]);
 
   return (
     <FadeInScreen>

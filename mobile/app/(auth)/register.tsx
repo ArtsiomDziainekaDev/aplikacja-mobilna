@@ -17,6 +17,7 @@ import { register, clearError } from '../../src/store/slices/authSlice';
 import { useConnectivity } from '../../src/hooks/useConnectivity';
 import haptics from '../../src/utils/haptics';
 import FadeInScreen from '../../src/components/FadeInScreen';
+import AuthLanguageSelector from '../../src/components/AuthLanguageSelector';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 import { isTranslationKey, useI18n } from '../../src/i18n';
@@ -113,6 +114,7 @@ export default function RegisterScreen(): React.JSX.Element {
                   },
                 ]}
             >
+              <AuthLanguageSelector />
               <Text style={styles.title}>{t('auth.createAccount')}</Text>
               {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
               <TextInput
