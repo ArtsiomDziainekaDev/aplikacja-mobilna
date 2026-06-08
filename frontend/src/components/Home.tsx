@@ -49,6 +49,35 @@ const FIATS = [
 
 const ALL_CURRENCIES = [...CRYPTOS, ...FIATS];
 
+async function fetchFiatPricesUsd(): Promise<Record<string, CryptoPrice>> {
+  const fiatMap: Record<string, CryptoPrice> = {
+    USD: { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0 },
+  };
+
+  await Promise.all(
+    FIATS.filter((f) => f.symbol !== 'USD').map(async (fiat) => {
+      try {
+        const { data } = await axiosInstance.get<number>(
+          `/api/currencies/external-rate?base=${fiat.symbol}&target=USD&percent=0`
+        );
+        if (typeof data === 'number' && data > 0) {
+          fiatMap[fiat.symbol] = {
+            symbol: fiat.symbol,
+            name: fiat.name,
+            icon: fiat.icon,
+            price: data,
+            change24h: 0,
+          };
+        }
+      } catch {
+        /* Skip fiat pairs that cannot be loaded. */
+      }
+    })
+  );
+
+  return fiatMap;
+}
+
 const Home: React.FC = () => {
   const [fromCurrency, setFromCurrency] = useState('BTC');
   const [toCurrency, setToCurrency] = useState('ETH');
@@ -56,6 +85,7 @@ const Home: React.FC = () => {
   const [prices, setPrices] = useState<Record<string, CryptoPrice>>({});
   const [loading, setLoading] = useState(true);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
   
   // Favorites State
   const [favorites, setFavorites] = useState<string[]>(['BTC', 'ETH', 'SOL']);
@@ -86,26 +116,14 @@ const Home: React.FC = () => {
           }
         });
 
-        // Add Fiat static rates to priceMap for calculator (Price relative to USD)
-        priceMap['USD'] = { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0 };
-        priceMap['EUR'] = { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0 };
-        priceMap['GBP'] = { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0 };
-        priceMap['PLN'] = { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0 };
-        
+        const fiatPrices = await fetchFiatPricesUsd();
+        Object.assign(priceMap, fiatPrices);
+
+        setPriceError(null);
         setPrices(priceMap);
-      } catch (err) {
-        console.error('Failed to fetch prices:', err);
-        // Fallback mock data
-        const fallback: Record<string, CryptoPrice> = {
-          BTC: { symbol: 'BTC', name: 'Bitcoin', icon: '₿', price: 62500, change24h: 2.5 },
-          ETH: { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', price: 4032, change24h: 1.8 },
-          SOL: { symbol: 'SOL', name: 'Solana', icon: '◎', price: 148, change24h: -0.5 },
-          USD: { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0 },
-          EUR: { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0 },
-          GBP: { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0 },
-          PLN: { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0 },
-        };
-        setPrices(fallback);
+      } catch {
+        setPriceError('Could not load live prices. Try again later.');
+        setPrices({});
       } finally {
         setLoading(false);
       }
@@ -113,7 +131,7 @@ const Home: React.FC = () => {
 
     const fetchFavorites = async () => {
       try {
-        const { data } = await axiosInstance.get('/crypto/favorites');
+        const { data } = await axiosInstance.get('/api/crypto/favorites');
         if (data && data.length > 0) {
           setFavorites(data);
         }
@@ -156,7 +174,7 @@ const Home: React.FC = () => {
       // If user selected two cryptos, we'll use 'toCurrency'.
       const cryptoCode = toCurrency;
       const amount = parseFloat(calculateConversion());
-      await axiosInstance.post('/orders', { currencyCode: cryptoCode, amount });
+      await axiosInstance.post('/api/orders', { currencyCode: cryptoCode, amount });
       alert('Order placed successfully!');
     } catch (err) {
       console.error('Failed to place order:', err);
@@ -168,7 +186,7 @@ const Home: React.FC = () => {
 
   const handleRemoveFavorite = async (symbol: string) => {
     try {
-      await axiosInstance.delete(`/crypto/favorites/${symbol}`);
+      await axiosInstance.delete(`/api/crypto/favorites/${symbol}`);
       setFavorites(prev => prev.filter(f => f !== symbol));
     } catch (err) {
       console.error('Failed to remove favorite', err);
@@ -181,7 +199,7 @@ const Home: React.FC = () => {
       return;
     }
     try {
-      await axiosInstance.post(`/crypto/favorites/${symbol}`);
+      await axiosInstance.post(`/api/crypto/favorites/${symbol}`);
       setFavorites(prev => [...prev, symbol]);
     } catch (err) {
       console.error('Failed to add favorite', err);
@@ -236,6 +254,10 @@ const Home: React.FC = () => {
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
               <CircularProgress sx={{ color: '#e91e8c' }} />
+            </Box>
+          ) : priceError ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Typography sx={{ color: '#ff5252', fontWeight: 600 }}>{priceError}</Typography>
             </Box>
           ) : (
             <>

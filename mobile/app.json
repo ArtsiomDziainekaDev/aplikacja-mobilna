@@ -17,8 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.projectapi.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "Aplikacja używa kamery do skanowania.",
-        "NSPhotoLibraryUsageDescription": "Aplikacja potrzebuje dostępu do galerii."
+        "NSCameraUsageDescription": "The app uses the camera to update your profile photo.",
+        "NSPhotoLibraryUsageDescription": "The app needs photo library access to choose a profile photo."
       }
     },
     "android": {
@@ -43,8 +43,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Aplikacja potrzebuje dostępu do zdjęć.",
-          "cameraPermission": "Aplikacja potrzebuje dostępu do kamery."
+          "photosPermission": "The app needs photo library access to choose a profile photo.",
+          "cameraPermission": "The app uses the camera to update your profile photo."
         }
       ],
       "expo-asset",

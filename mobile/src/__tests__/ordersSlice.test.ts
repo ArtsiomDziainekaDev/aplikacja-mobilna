@@ -116,7 +116,7 @@ describe('createOrder thunk validation', () => {
     const result = await thunkAction(dispatch, getState, undefined);
     expect(createOrder.rejected.match(result)).toBe(true);
     if (createOrder.rejected.match(result)) {
-      expect(result.payload).toBe('Nieprawidłowa kwota zamówienia');
+      expect(result.payload).toBe('errors.orders.invalidAmount');
     }
   });
 });

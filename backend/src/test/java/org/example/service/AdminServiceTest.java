@@ -85,7 +85,7 @@ class AdminServiceTest {
 
         // Assert
         assertEquals(OrderStatus.COMPLETED, pendingConfirmationOrder.getStatus());
-        verify(orderRepository).save(pendingConfirmationOrder);
+        verify(orderRepository).save(java.util.Objects.requireNonNull(pendingConfirmationOrder));
     }
 
     @Test
@@ -95,7 +95,8 @@ class AdminServiceTest {
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> adminService.markOrderAsCollected(2L));
-        verify(orderRepository, never()).save(any(Order.class));
+        verify(orderRepository).findById(2L);
+        verifyNoMoreInteractions(orderRepository);
     }
 
     @Test
@@ -105,6 +106,7 @@ class AdminServiceTest {
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> adminService.markOrderAsCollected(999L));
-        verify(orderRepository, never()).save(any(Order.class));
+        verify(orderRepository).findById(999L);
+        verifyNoMoreInteractions(orderRepository);
     }
 } 

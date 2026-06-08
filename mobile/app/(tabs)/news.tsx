@@ -15,7 +15,7 @@ import { fetchNews, triggerNewsRefresh } from '../../src/api/news';
 import type { NewsItem } from '../../src/types';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
-import { useI18n } from '../../src/i18n';
+import { Language, TranslationKey, useI18n } from '../../src/i18n';
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Market: { bg: colors.tagMarket, text: '#000' },
@@ -37,7 +37,17 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-function formatTimeAgo(value: string): string {
+const LOCALE_BY_LANGUAGE: Record<Language, string> = {
+  en: 'en-US',
+  pl: 'pl-PL',
+  ru: 'ru-RU',
+};
+
+function formatTimeAgo(
+  value: string,
+  language: Language,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string {
   try {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -47,18 +57,18 @@ function formatTimeAgo(value: string): string {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diffMins < 1) return t('news.time.justNow');
+    if (diffMins < 60) return t('news.time.minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('news.time.hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('news.time.daysAgo', { count: diffDays });
+    return date.toLocaleDateString(LOCALE_BY_LANGUAGE[language], { month: 'short', day: 'numeric' });
   } catch {
     return '';
   }
 }
 
 function NewsCard({ item, onOpen, featured }: { item: NewsItem; onOpen: (url: string) => void; featured?: boolean }): React.JSX.Element {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
 
   return (
     <TouchableOpacity
@@ -79,7 +89,7 @@ function NewsCard({ item, onOpen, featured }: { item: NewsItem; onOpen: (url: st
         </View>
         <View style={styles.timeRow}>
           <MaterialCommunityIcons name="clock-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.timeText}>{formatTimeAgo(item.publishedAt)}</Text>
+          <Text style={styles.timeText}>{formatTimeAgo(item.publishedAt, language, t)}</Text>
         </View>
       </View>
 

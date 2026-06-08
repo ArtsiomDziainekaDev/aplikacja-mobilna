@@ -20,7 +20,7 @@ import haptics from '../../src/utils/haptics';
 import FadeInScreen from '../../src/components/FadeInScreen';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
-import { useI18n } from '../../src/i18n';
+import { isTranslationKey, useI18n } from '../../src/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +31,7 @@ export default function LoginScreen(): React.JSX.Element {
   const { loading, error } = useAppSelector((s) => s.auth);
   const isConnected = useConnectivity();
   const { t } = useI18n();
+  const errorText = error && isTranslationKey(error) ? t(error) : error;
 
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
@@ -107,9 +108,9 @@ export default function LoginScreen(): React.JSX.Element {
                 ]}
             >
               <Text style={styles.title}>{t('auth.signIn')}</Text>
-              {error ? (
+              {errorText ? (
                   <>
-                    <Text style={styles.error}>{error}</Text>
+                    <Text style={styles.error}>{errorText}</Text>
                     <Text style={styles.apiHint}>{t('auth.apiAddress', { url: getBaseURL() })}</Text>
                   </>
               ) : null}

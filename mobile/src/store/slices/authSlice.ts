@@ -45,9 +45,9 @@ export const login = createAsyncThunk(
     try {
       const response = await api.post<LoginResponse>('/api/auth/signin', credentials);
       const { token, id, email, roles } = response.data;
-      if (!token) return rejectWithValue('Brak tokenu w odpowiedzi');
+      if (!token) return rejectWithValue('errors.auth.missingToken');
       if (typeof id !== 'number' || typeof email !== 'string' || !email) {
-        return rejectWithValue('Nieprawidłowa odpowiedź serwera (brak id/email)');
+        return rejectWithValue('errors.auth.invalidServerResponse');
       }
       await setStoredToken(token);
       await haptics.success();
@@ -61,7 +61,7 @@ export const login = createAsyncThunk(
       };
     } catch (err: unknown) {
       await haptics.error();
-      let message = 'Błąd logowania';
+      let message = 'errors.auth.loginFailed';
       if (err && typeof err === 'object' && 'response' in err) {
         const res = (err as { response?: { data?: unknown } }).response;
         const data = res?.data;
@@ -72,9 +72,9 @@ export const login = createAsyncThunk(
       } else if (err instanceof Error && err.message) {
         message = err.message;
         if (message === 'Network Error' || message.includes('network') || message.includes('ECONNREFUSED')) {
-          message = 'Brak połączenia z serwerem. Uruchom backend (docker compose up). Na emulatorze Android: EXPO_PUBLIC_API_URL=http://10.0.2.2:8081. Na telefonie w Wi‑Fi: adres IP komputera (ipconfig), np. http://192.168.1.5:8081. Potem: npx expo start -c';
+          message = 'errors.auth.network';
         } else if (message.includes('timeout') || message.includes('exceeded')) {
-          message = 'Serwer nie odpowiada. 1) Backend działa? (docker compose up) 2) Na telefonie w Wi‑Fi w pliku mobile/.env ustaw EXPO_PUBLIC_API_URL=http://IP_KOMPUTERA:8081 (ipconfig → IPv4). 3) Uruchom ponownie: npx expo start -c';
+          message = 'errors.auth.timeout';
         }
       }
       return rejectWithValue(message);
@@ -88,10 +88,10 @@ export const register = createAsyncThunk(
     try {
       await api.post('/api/auth/signup', credentials);
       await haptics.success();
-      return { message: 'Konto utworzone. Zaloguj się.' };
+      return { message: 'auth.accountCreated' };
     } catch (err: unknown) {
       await haptics.error();
-      let message = 'Błąd rejestracji';
+      let message = 'errors.auth.registerFailed';
       if (err && typeof err === 'object' && 'response' in err) {
         const res = (err as { response?: { data?: unknown } }).response;
         const data = res?.data;
@@ -103,9 +103,9 @@ export const register = createAsyncThunk(
       } else if (err instanceof Error && err.message) {
         message = err.message;
         if (message === 'Network Error' || message.includes('network') || message.includes('ECONNREFUSED')) {
-          message = 'Brak połączenia z serwerem. Uruchom backend (docker compose up) i ustaw EXPO_PUBLIC_API_URL: na emulatorze Android — http://10.0.2.2:8081, na urządzeniu — http://IP_KOMPUTERA:8081.';
+          message = 'errors.auth.network';
         } else if (message.includes('timeout') || message.includes('exceeded')) {
-          message = 'Serwer nie odpowiada w czasie. Upewnij się, że backend działa (docker compose up) i spróbuj ponownie.';
+          message = 'errors.auth.timeout';
         }
       }
       return rejectWithValue(message);
@@ -141,7 +141,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || action.error.message || 'Błąd logowania';
+        state.error = (action.payload as string) || action.error.message || 'errors.auth.loginFailed';
       })
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -153,7 +153,7 @@ const authSlice = createSlice({
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Błąd rejestracji';
+        state.error = (action.payload as string) || 'errors.auth.registerFailed';
       })
       .addCase(checkAuth.pending, (state) => {
         state.loading = true;

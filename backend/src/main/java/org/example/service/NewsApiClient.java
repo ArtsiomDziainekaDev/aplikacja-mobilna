@@ -3,18 +3,19 @@ package org.example.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class NewsApiClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(NewsApiClient.class);
 
     @Value("${newsapi.key}")
     private String newsApiKey;
@@ -44,7 +45,7 @@ public class NewsApiClient {
 
             return parseNewsResponse(response);
         } catch (Exception e) {
-            System.err.println("Error fetching news from News API: " + e.getMessage());
+            logger.error("Error fetching news from News API", e);
             return new ArrayList<>();
         }
     }
@@ -70,7 +71,7 @@ public class NewsApiClient {
                 });
             }
         } catch (Exception e) {
-            System.err.println("Error parsing News API response: " + e.getMessage());
+            logger.error("Error parsing News API response", e);
         }
         return items;
     }

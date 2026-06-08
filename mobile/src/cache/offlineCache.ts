@@ -29,7 +29,7 @@ async function setCached<T>(key: string, data: T): Promise<void> {
   try {
     await AsyncStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
   } catch {
-    /* zapis cache jest najlepiej-effort, brak miejsca nie powinien sypać UI */
+    /* Cache writes should never block the UI. */
   }
 }
 

@@ -9,39 +9,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AdminService {
     private final OrderRepository orderRepository;
+    private static final List<OrderStatus> ACTIVE_STATUSES = List.of(
+            OrderStatus.PENDING_PAYMENT,
+            OrderStatus.PENDING_CONFIRMATION,
+            OrderStatus.CONFIRMED,
+            OrderStatus.IN_PROGRESS,
+            OrderStatus.READY_FOR_PICKUP
+    );
 
     @Transactional(readOnly = true)
     public List<AdminOrderDTO> getAllActiveOrders() {
-        try {
-            List<Order> allOrders = orderRepository.findAllByOrderByCreatedAtDesc();
-            return allOrders.stream()
-                    .filter(order -> List.of(
-                            OrderStatus.PENDING_PAYMENT, 
-                            OrderStatus.PENDING_CONFIRMATION,
-                            OrderStatus.CONFIRMED,
-                            OrderStatus.IN_PROGRESS,
-                            OrderStatus.READY_FOR_PICKUP
-                    ).contains(order.getStatus()))
-                    .map(AdminOrderDTO::fromOrder)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            // Fallback - zwracamy wszystkie zamówienia jeśli wystąpi błąd
-            List<Order> allOrders = orderRepository.findAllByOrderByCreatedAtDesc();
-            return allOrders.stream()
-                    .map(AdminOrderDTO::fromOrder)
-                    .collect(Collectors.toList());
-        }
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(order -> ACTIVE_STATUSES.contains(order.getStatus()))
+                .map(AdminOrderDTO::fromOrder)
+                .collect(Collectors.toList());
     }
 
     @Transactional
     public void markOrderAsCollected(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findById(Objects.requireNonNull(orderId))
                 .orElseThrow(() -> new RuntimeException("Zamówienie nie znalezione"));
         
         if (order.getStatus() != OrderStatus.PENDING_CONFIRMATION) {
@@ -54,7 +47,7 @@ public class AdminService {
 
     @Transactional
     public AdminOrderDTO updateOrderStatus(Long orderId, OrderStatus newStatus) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findById(Objects.requireNonNull(orderId))
                 .orElseThrow(() -> new RuntimeException("Zamówienie nie znalezione"));
         
         // Walidacja przejścia statusu

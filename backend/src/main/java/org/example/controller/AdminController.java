@@ -21,11 +21,6 @@ public class AdminController {
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
     private final AdminService adminService;
 
-    @GetMapping("/test")
-    public ResponseEntity<?> testEndpoint() {
-        return ResponseEntity.ok(Map.of("message", "Admin API działa poprawnie"));
-    }
-
     @GetMapping("/orders")
     public ResponseEntity<?> getAllOrders() {
         try {

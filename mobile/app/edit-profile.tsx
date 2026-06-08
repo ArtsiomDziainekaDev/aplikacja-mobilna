@@ -21,10 +21,12 @@ import { colors } from '../src/theme/colors';
 import { spacing } from '../src/theme/spacing';
 import { useAppDispatch, useAppSelector } from '../src/hooks/useRedux';
 import { loadProfile, saveProfile, updateSettings } from '../src/store/slices/profileSlice';
+import { useI18n } from '../src/i18n';
 
 export default function EditProfileScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const { t } = useI18n();
   const { settings, loaded } = useAppSelector((s) => s.profile);
   const { user } = useAppSelector((s) => s.auth);
 
@@ -51,7 +53,7 @@ export default function EditProfileScreen(): React.JSX.Element {
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant photo library access in your device settings.');
+      Alert.alert(t('editProfile.permissionNeeded'), t('editProfile.permissionLibrary'));
       return;
     }
 
@@ -65,14 +67,14 @@ export default function EditProfileScreen(): React.JSX.Element {
     if (!result.canceled && result.assets[0]) {
       setAvatarUri(result.assets[0].uri);
     }
-  }, []);
+  }, [t]);
 
   const handleTakePhoto = useCallback(async () => {
     await haptics.lightTap();
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera access in your device settings.');
+      Alert.alert(t('editProfile.permissionNeeded'), t('editProfile.permissionCamera'));
       return;
     }
 
@@ -85,7 +87,7 @@ export default function EditProfileScreen(): React.JSX.Element {
     if (!result.canceled && result.assets[0]) {
       setAvatarUri(result.assets[0].uri);
     }
-  }, []);
+  }, [t]);
 
   const handleChoosePhoto = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -93,32 +95,38 @@ export default function EditProfileScreen(): React.JSX.Element {
       return;
     }
 
-    Alert.alert('Change Photo', 'Choose an option', [
-      { text: 'Take Photo', onPress: handleTakePhoto },
-      { text: 'Choose from Library', onPress: handlePickImage },
-      ...(avatarUri ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => setAvatarUri(null) }] : []),
-      { text: 'Cancel', style: 'cancel' as const },
+    Alert.alert(t('editProfile.changePhoto'), t('editProfile.tapPhoto'), [
+      { text: t('editProfile.takePhoto'), onPress: handleTakePhoto },
+      { text: t('editProfile.chooseFromLibrary'), onPress: handlePickImage },
+      ...(avatarUri ? [{ text: t('editProfile.removePhoto'), style: 'destructive' as const, onPress: () => setAvatarUri(null) }] : []),
+      { text: t('common.cancel'), style: 'cancel' as const },
     ]);
-  }, [handlePickImage, handleTakePhoto, avatarUri]);
+  }, [handlePickImage, handleTakePhoto, avatarUri, t]);
 
   const handleSave = useCallback(async () => {
+    const trimmedName = displayName.trim();
+    if (displayName.length > 0 && trimmedName.length === 0) {
+      Alert.alert(t('common.error'), t('editProfile.enterName'));
+      return;
+    }
+
     await haptics.success();
     setIsSaving(true);
 
-    dispatch(updateSettings({ displayName: displayName.trim(), avatarUri }));
+    dispatch(updateSettings({ displayName: trimmedName, avatarUri }));
     await dispatch(
       saveProfile({
         ...settings,
-        displayName: displayName.trim(),
+        displayName: trimmedName,
         avatarUri,
       }),
     );
 
     setIsSaving(false);
-    Alert.alert('Saved', 'Profile updated successfully.', [
-      { text: 'OK', onPress: () => router.back() },
+    Alert.alert(t('common.success'), t('editProfile.saved'), [
+      { text: t('common.ok'), onPress: () => router.back() },
     ]);
-  }, [dispatch, displayName, avatarUri, settings]);
+  }, [dispatch, displayName, avatarUri, settings, t]);
 
   const hasChanges =
     displayName.trim() !== settings.displayName || avatarUri !== settings.avatarUri;
@@ -155,8 +163,8 @@ export default function EditProfileScreen(): React.JSX.Element {
             <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Edit Profile</Text>
-            <Text style={styles.headerSubtitle}>Update your personal information</Text>
+            <Text style={styles.headerTitle}>{t('editProfile.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('editProfile.subtitle')}</Text>
           </View>
         </View>
 
@@ -178,34 +186,34 @@ export default function EditProfileScreen(): React.JSX.Element {
               <MaterialCommunityIcons name="camera" size={16} color="#fff" />
             </View>
           </TouchableOpacity>
-          <Text style={styles.changePhotoText}>Tap to change photo</Text>
+          <Text style={styles.changePhotoText}>{t('editProfile.tapPhoto')}</Text>
         </View>
 
         {/* Form */}
         <View style={styles.formCard}>
-          <Text style={styles.fieldLabel}>Display Name</Text>
+          <Text style={styles.fieldLabel}>{t('editProfile.displayName')}</Text>
           <TextInput
             style={styles.textInput}
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="Enter your name"
+            placeholder={t('editProfile.enterName')}
             placeholderTextColor={colors.textMuted}
             maxLength={40}
             autoCapitalize="words"
           />
 
-          <Text style={styles.fieldLabel}>Email</Text>
+          <Text style={styles.fieldLabel}>{t('common.email')}</Text>
           <View style={styles.readOnlyField}>
             <MaterialCommunityIcons name="lock" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <Text style={styles.readOnlyText}>{email}</Text>
           </View>
-          <Text style={styles.fieldHint}>Email cannot be changed from the app</Text>
+          <Text style={styles.fieldHint}>{t('editProfile.emailLocked')}</Text>
 
-          <Text style={styles.fieldLabel}>Role</Text>
+          <Text style={styles.fieldLabel}>{t('editProfile.role')}</Text>
           <View style={styles.readOnlyField}>
             <MaterialCommunityIcons name="shield-account" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
             <Text style={styles.readOnlyText}>
-              {user?.role ? user.role.replace('ROLE_', '') : 'USER'}
+              {user?.role ? user.role.replace('ROLE_', '') : t('editProfile.defaultRole')}
             </Text>
           </View>
         </View>
@@ -222,7 +230,7 @@ export default function EditProfileScreen(): React.JSX.Element {
           >
             <MaterialCommunityIcons name="content-save" size={20} color="#fff" style={{ marginRight: 8 }} />
             <Text style={styles.saveButtonText}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? t('editProfile.saving') : t('editProfile.save')}
             </Text>
           </TouchableOpacity>
         </Animated.View>

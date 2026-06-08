@@ -1,18 +1,19 @@
 package org.example.service;
 
 import org.example.dto.NewsItemDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 @Service
 public class NewsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(NewsService.class);
     private static final int MAX_NEWS_ITEMS = 10;
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
     private final NewsApiClient newsApiClient;
     private final GeminiApiClient geminiApiClient;
@@ -40,7 +41,7 @@ public class NewsService {
                 List<NewsApiClient.RawNewsItem> rawNews = newsApiClient.getLatestCryptoNews(15);
                 
                 if (rawNews.isEmpty()) {
-                    System.out.println("No news fetched from News API");
+                    logger.info("No news fetched from News API");
                     return;
                 }
 
@@ -69,13 +70,12 @@ public class NewsService {
                 try {
                     newsCache.clear();
                     newsCache.addAll(processedNews);
-                    System.out.println("News cache updated with " + processedNews.size() + " items");
+                    logger.info("News cache updated with {} items", processedNews.size());
                 } finally {
                     cacheLock.writeLock().unlock();
                 }
             } catch (Exception e) {
-                System.err.println("Error refreshing news: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Error refreshing news", e);
             }
         }).start();
     }
