@@ -18,6 +18,8 @@ export interface AuthState {
   loading: boolean;
   error: string | null;
   isAdmin: boolean;
+  /** True once the initial token check (checkAuth) has settled. Guards against redirecting before auth is known. */
+  authChecked: boolean;
 }
 
 export interface LoginCredentials {

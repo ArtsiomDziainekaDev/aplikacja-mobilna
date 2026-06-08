@@ -24,6 +24,7 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isAdmin: false,
+  authChecked: false,
 };
 
 describe('authSlice reducer', () => {
@@ -76,6 +77,7 @@ describe('authSlice reducer', () => {
       loading: false,
       error: null,
       isAdmin: false,
+      authChecked: true,
     };
     const state = authReducer(start, { type: logout.fulfilled.type });
     expect(state.user).toBeNull();
