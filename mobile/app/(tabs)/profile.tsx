@@ -31,7 +31,6 @@ interface Holding {
   value: number;
 }
 
-const SETTINGS_ROUTE = '/settings' as Href;
 const LOCALE_BY_LANGUAGE: Record<Language, string> = {
   en: 'en-US',
   pl: 'pl-PL',
@@ -247,14 +246,7 @@ export default function ProfileScreen(): React.JSX.Element {
               <Text style={styles.userName}>{displayName}</Text>
               <Text style={styles.email}>{user?.email ?? t('profile.notSignedIn')}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.settingsBtn}
-              onPress={() => router.push(SETTINGS_ROUTE)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="cog" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+            </View>
 
           <View style={styles.badges}>
             <View style={styles.roleBadge}>
@@ -290,6 +282,16 @@ export default function ProfileScreen(): React.JSX.Element {
             </View>
           </View>
         </Animated.View>
+
+        <TouchableOpacity
+          style={styles.mainSettingsButton}
+          onPress={() => router.push('/settings')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="cog-outline" size={22} color="#fff" style={{ marginRight: 12 }} />
+          <Text style={styles.mainSettingsButtonText}>{t('nav.settings')}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={22} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
 
         <View style={styles.tabsContainer}>
           <TouchableOpacity
@@ -502,10 +504,21 @@ const styles = StyleSheet.create({
   userInfo: { flex: 1 },
   userName: { fontSize: 18, fontWeight: '700', color: colors.text },
   email: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  settingsBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: colors.surfaceLight, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border,
+  mainSettingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: spacing.md,
+  },
+  mainSettingsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   badges: { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
   roleBadge: {

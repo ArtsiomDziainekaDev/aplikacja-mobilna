@@ -26,7 +26,7 @@ import {
   updateSettings,
   updatePrivacy,
 } from '../store/slices/profileSlice';
-import type { AppLanguage } from '../types';
+import type { AppLanguage, ProfileSettings } from '../types';
 import { useI18n } from '../i18n';
 
 interface PickerOption<T extends string> {
@@ -194,19 +194,14 @@ export default function SettingsScreen(): React.JSX.Element {
     if (!loaded) dispatch(loadProfile());
   }, [dispatch, loaded]);
 
-  // Persist settings whenever their content actually changes. We compare a
-  // serialized snapshot instead of the object reference: a save round-trip (or
-  // any normalization) can hand back a new-but-equal object, and re-saving on
-  // that would create an infinite "change -> save -> change" loop that freezes
-  // the app.
-  const lastSavedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!loaded) return;
-    const snapshot = JSON.stringify(settings);
-    if (lastSavedRef.current === snapshot) return;
-    lastSavedRef.current = snapshot;
-    dispatch(saveProfile(settings));
-  }, [settings, loaded, dispatch]);
+
+  const commitSettings = useCallback(
+    (nextSettings: ProfileSettings) => {
+      dispatch(updateSettings(nextSettings));
+      dispatch(saveProfile(nextSettings));
+    },
+    [dispatch],
+  );
 
   useEffect(() => {
     if (loaded && settings.language !== language) {
@@ -227,9 +222,17 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handlePrivacyToggle = useCallback(
     (key: keyof typeof privacy) => {
-      dispatch(updatePrivacy({ [key]: !privacy[key] }));
+      const nextSettings = {
+        ...settings,
+        privacy: {
+          ...settings.privacy,
+          [key]: !settings.privacy[key],
+        },
+      };
+      dispatch(updatePrivacy({ [key]: nextSettings.privacy[key] }));
+      dispatch(saveProfile(nextSettings));
     },
-    [dispatch, privacy],
+    [dispatch, settings],
   );
 
   return (
@@ -307,7 +310,7 @@ export default function SettingsScreen(): React.JSX.Element {
         options={LANGUAGE_OPTIONS}
         selected={language}
         onSelect={(v) => {
-          dispatch(updateSettings({ language: v }));
+          commitSettings({ ...settings, language: v });
           void setLanguage(v);
         }}
         onClose={() => setShowLanguagePicker(false)}
