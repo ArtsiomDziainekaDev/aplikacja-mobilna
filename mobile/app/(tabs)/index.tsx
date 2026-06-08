@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '../../src/hooks/useRedux';
 import { fetchCrypto } from '../../src/store/slices/cryptoSlice';
 import { createOrder } from '../../src/store/slices/ordersSlice';
 import { getCryptoMeta } from '../../src/services/cryptoService';
+import { useI18n } from '../../src/i18n';
 
 interface Currency {
   symbol: string;
@@ -43,6 +44,7 @@ const MAX_FAVORITES = 3;
 export default function HomeScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const { t } = useI18n();
   const { list: cryptoList, loading: cryptoLoading } = useAppSelector((s) => s.crypto);
   const { createLoading, error: orderError } = useAppSelector((s) => s.orders);
 
@@ -127,22 +129,29 @@ export default function HomeScreen(): React.JSX.Element {
 
   const handlePlaceOrder = useCallback(async () => {
     if (!isAmountValid) {
-      Alert.alert('Invalid amount', 'Please enter a positive number.');
+      Alert.alert(t('home.invalidAmount'), t('home.invalidAmountMessage'));
       return;
     }
     const targetAmount = Number.parseFloat(converted);
     if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-      Alert.alert('Invalid conversion', 'Conversion result is not a valid number.');
+      Alert.alert(t('home.invalidConversion'), t('home.invalidConversionMessage'));
       return;
     }
     const result = await dispatch(createOrder({ currencyCode: toCurrency, amount: targetAmount }));
     if (createOrder.fulfilled.match(result)) {
-      Alert.alert('Order placed', `Created order #${result.payload.id} for ${result.payload.amount} ${result.payload.currencyCode}.`);
+      Alert.alert(
+        t('home.orderPlaced'),
+        t('home.orderPlacedMessage', {
+          id: result.payload.id,
+          amount: result.payload.amount,
+          currency: result.payload.currencyCode,
+        })
+      );
     } else {
-      const message = (result.payload as string | undefined) ?? orderError ?? 'Failed to place order.';
-      Alert.alert('Order failed', message);
+      const message = (result.payload as string | undefined) ?? orderError ?? t('home.orderFailed');
+      Alert.alert(t('home.orderFailed'), message);
     }
-  }, [dispatch, toCurrency, converted, isAmountValid, orderError]);
+  }, [dispatch, toCurrency, converted, isAmountValid, orderError, t]);
 
   const handleRemoveFavorite = useCallback(async (symbol: string) => {
     try {
@@ -155,7 +164,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const handleAddFavorite = useCallback(async (symbol: string) => {
     if (favorites.length >= MAX_FAVORITES) {
-      Alert.alert('Limit reached', `Maximum ${MAX_FAVORITES} favorite coins allowed.`);
+      Alert.alert(t('home.limitReached'), t('home.limitReachedMessage', { count: MAX_FAVORITES }));
       return;
     }
     try {
@@ -164,7 +173,7 @@ export default function HomeScreen(): React.JSX.Element {
     } catch {
       /* best-effort */
     }
-  }, [favorites.length]);
+  }, [favorites.length, t]);
 
   const favoriteCryptos = useMemo(
     () => favorites
@@ -192,8 +201,8 @@ export default function HomeScreen(): React.JSX.Element {
             <MaterialCommunityIcons name="calculator-variant" size={22} color={colors.textSecondary} />
           </View>
           <View>
-            <Text style={styles.title}>Crypto Calculator</Text>
-            <Text style={styles.subtitle}>Real-time cryptocurrency converter</Text>
+            <Text style={styles.title}>{t('home.calculatorTitle')}</Text>
+            <Text style={styles.subtitle}>{t('home.calculatorSubtitle')}</Text>
           </View>
         </View>
 
@@ -202,7 +211,7 @@ export default function HomeScreen(): React.JSX.Element {
             <ActivityIndicator size="large" color={colors.primary} style={{ paddingVertical: 40 }} />
           ) : (
             <>
-              <Text style={styles.label}>From</Text>
+              <Text style={styles.label}>{t('home.from')}</Text>
               <TouchableOpacity
                 style={styles.selector}
                 onPress={() => setShowFromPicker(!showFromPicker)}
@@ -234,7 +243,7 @@ export default function HomeScreen(): React.JSX.Element {
                 placeholder="0.00"
               />
               {!isAmountValid && (
-                <Text style={styles.errorText}>Enter a positive number</Text>
+                <Text style={styles.errorText}>{t('home.positiveNumber')}</Text>
               )}
 
               <View style={styles.swapRow}>
@@ -243,7 +252,7 @@ export default function HomeScreen(): React.JSX.Element {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.label}>To</Text>
+              <Text style={styles.label}>{t('home.to')}</Text>
               <TouchableOpacity
                 style={styles.selector}
                 onPress={() => setShowToPicker(!showToPicker)}
@@ -271,7 +280,7 @@ export default function HomeScreen(): React.JSX.Element {
               </View>
 
               <View style={styles.rateRow}>
-                <Text style={styles.rateLabel}>Exchange Rate</Text>
+                <Text style={styles.rateLabel}>{t('home.exchangeRate')}</Text>
                 <Text style={styles.rateValue}>1 {fromCurrency} = {exchangeRate} {toCurrency}</Text>
               </View>
 
@@ -286,7 +295,7 @@ export default function HomeScreen(): React.JSX.Element {
                 ) : (
                   <>
                     <MaterialCommunityIcons name="cart" size={20} color="#000" style={{ marginRight: 8 }} />
-                    <Text style={styles.placeOrderText}>Place Order</Text>
+                    <Text style={styles.placeOrderText}>{t('home.placeOrder')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -295,7 +304,7 @@ export default function HomeScreen(): React.JSX.Element {
         </View>
 
         <View style={styles.favHeader}>
-          <Text style={styles.favTitle}>Favorite Coins</Text>
+          <Text style={styles.favTitle}>{t('home.favoriteCoins')}</Text>
           <TouchableOpacity
             style={[styles.favEditBtn, isEditingFavs && styles.favEditBtnActive]}
             onPress={() => setIsEditingFavs(!isEditingFavs)}
@@ -345,7 +354,7 @@ export default function HomeScreen(): React.JSX.Element {
 
           {isEditingFavs && favorites.length < MAX_FAVORITES && availableToAdd.length > 0 && (
             <View style={styles.addFavCard}>
-              <Text style={styles.addFavText}>Add Coin</Text>
+              <Text style={styles.addFavText}>{t('home.addCoin')}</Text>
               {availableToAdd.map((c) => (
                 <TouchableOpacity
                   key={c.symbol}

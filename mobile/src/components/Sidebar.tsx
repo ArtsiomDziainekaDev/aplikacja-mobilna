@@ -16,23 +16,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { logout } from '../store/slices/authSlice';
 import { colors } from '../theme/colors';
+import { TranslationKey, useI18n } from '../i18n';
 
 export const SIDEBAR_WIDTH = 240;
 
 interface NavItem {
-  label: string;
+  labelKey: TranslationKey;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   path: Href;
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Home', icon: 'home', path: '/(tabs)' },
-  { label: 'Crypto', icon: 'chart-line', path: '/(tabs)/crypto' },
-  { label: 'News', icon: 'newspaper-variant-outline', path: '/(tabs)/news' },
-  { label: 'Profile', icon: 'account', path: '/(tabs)/profile' },
+  { labelKey: 'nav.home', icon: 'home', path: '/(tabs)' },
+  { labelKey: 'nav.crypto', icon: 'chart-line', path: '/(tabs)/crypto' },
+  { labelKey: 'nav.news', icon: 'newspaper-variant-outline', path: '/(tabs)/news' },
+  { labelKey: 'nav.profile', icon: 'account', path: '/(tabs)/profile' },
 ];
 
-const ADMIN_NAV_ITEM: NavItem = { label: 'Admin', icon: 'shield-account', path: '/admin' };
+const ADMIN_NAV_ITEM: NavItem = { labelKey: 'common.admin', icon: 'shield-account', path: '/admin' };
 
 interface SidebarProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
   const { user } = useAppSelector((s) => s.auth);
   const isAdmin = user?.role === 'ROLE_ADMIN';
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const slideAnim = useRef(new Animated.Value(isDesktop ? 0 : -SIDEBAR_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -143,7 +145,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
       <View style={[styles.logoSection, { marginTop: Platform.OS === 'ios' ? 12 : 24 }]}>
         <View>
           <Text style={styles.logoText}>Crypto App</Text>
-          <Text style={styles.logoSubtext}>Track & Calculate</Text>
+          <Text style={styles.logoSubtext}>{t('nav.subtitle')}</Text>
         </View>
       </View>
 
@@ -153,7 +155,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
           const active = isActive(item.path);
           return (
             <TouchableOpacity
-              key={item.label}
+              key={item.labelKey}
               style={[styles.navItem, active && styles.navItemActive]}
               onPress={() => handleNavClick(item.path)}
               activeOpacity={0.8}
@@ -163,7 +165,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
                 size={20}
                 color={active ? '#fff' : 'rgba(255,255,255,0.6)'}
               />
-              <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
+              <Text style={[styles.navText, active && styles.navTextActive]}>{t(item.labelKey)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -182,7 +184,7 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
                 color={isActive(ADMIN_NAV_ITEM.path) ? '#fff' : 'rgba(255,255,255,0.6)'}
               />
               <Text style={[styles.navText, isActive(ADMIN_NAV_ITEM.path) && styles.navTextActive]}>
-                {ADMIN_NAV_ITEM.label}
+                {t(ADMIN_NAV_ITEM.labelKey)}
               </Text>
             </TouchableOpacity>
           </>
@@ -195,15 +197,15 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
       <View style={styles.bottomSection}>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <MaterialCommunityIcons name="logout" size={20} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>{t('nav.logout')}</Text>
         </TouchableOpacity>
 
         {/* Market Status */}
         <View style={styles.marketStatus}>
-          <Text style={styles.marketStatusTitle}>Market Status</Text>
+          <Text style={styles.marketStatusTitle}>{t('nav.marketStatus')}</Text>
           <View style={styles.marketStatusRow}>
             <View style={styles.pulseDot} />
-            <Text style={styles.marketStatusText}>Live Trading</Text>
+            <Text style={styles.marketStatusText}>{t('nav.liveTrading')}</Text>
           </View>
         </View>
       </View>

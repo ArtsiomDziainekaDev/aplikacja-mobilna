@@ -1,17 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Link, Stack } from 'expo-router';
+import { useI18n } from '../src/i18n';
 
 export default function NotFoundScreen(): React.JSX.Element {
+  const { t } = useI18n();
+
   return (
     <>
-      <Stack.Screen options={{ title: 'Nie znaleziono' }} />
+      <Stack.Screen options={{ title: t('notFound.title') }} />
       <View style={styles.container}>
         <Text style={styles.title}>404</Text>
-        <Text style={styles.message}>Ta strona nie istnieje.</Text>
+        <Text style={styles.message}>{t('notFound.message')}</Text>
         <Link href="/" asChild>
           <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Strona główna</Text>
+            <Text style={styles.buttonText}>{t('notFound.button')}</Text>
           </TouchableOpacity>
         </Link>
       </View>

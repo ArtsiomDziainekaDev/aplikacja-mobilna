@@ -20,6 +20,7 @@ import haptics from '../../src/utils/haptics';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 import { getCryptoMeta } from '../../src/services/cryptoService';
+import { Language, TranslationKey, languages, useI18n } from '../../src/i18n';
 
 interface Holding {
   symbol: string;
@@ -27,6 +28,12 @@ interface Holding {
   amount: number;
   value: number;
 }
+
+const LANGUAGE_LABELS: Record<Language, string> = {
+  en: 'EN',
+  pl: 'PL',
+  ru: 'RU',
+};
 
 function statusStyle(s: OrderStatus): { bg: string; color: string } {
   switch (s) {
@@ -42,12 +49,15 @@ function statusStyle(s: OrderStatus): { bg: string; color: string } {
   }
 }
 
-function statusLabel(s: OrderStatus): string {
+function statusLabel(s: OrderStatus, t: (key: TranslationKey) => string): string {
   switch (s) {
-    case 'COMPLETED': return 'Completed';
-    case 'CANCELLED': return 'Cancelled';
-    case 'PENDING_PAYMENT': return 'Pending';
-    case 'PENDING_CONFIRMATION': return 'Confirming';
+    case 'COMPLETED': return t('common.completed');
+    case 'CANCELLED': return t('admin.cancelled');
+    case 'PENDING_PAYMENT': return t('admin.pendingPayment');
+    case 'PENDING_CONFIRMATION': return t('admin.pendingConfirmation');
+    case 'CONFIRMED': return t('admin.confirmed');
+    case 'IN_PROGRESS': return t('admin.inProgress');
+    case 'READY_FOR_PICKUP': return t('admin.readyForPickup');
     default: return s.replace(/_/g, ' ');
   }
 }
@@ -79,7 +89,7 @@ function buildHoldings(orders: OrderDTO[]): Holding[] {
   return Array.from(map.values()).sort((a, b) => b.value - a.value);
 }
 
-function OrderCard({ item, index }: { item: OrderDTO; index: number }): React.JSX.Element {
+function OrderCard({ item, index, t }: { item: OrderDTO; index: number; t: (key: TranslationKey) => string }): React.JSX.Element {
   const { bg, color } = statusStyle(item.status);
   const date = item.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -108,23 +118,23 @@ function OrderCard({ item, index }: { item: OrderDTO; index: number }): React.JS
           </View>
         </View>
         <View style={[styles.badge, { backgroundColor: bg }]}>
-          <Text style={[styles.badgeText, { color }]}>{statusLabel(item.status)}</Text>
+          <Text style={[styles.badgeText, { color }]}>{statusLabel(item.status, t)}</Text>
         </View>
       </View>
 
       <View style={styles.rows}>
         <View style={styles.row}>
-          <Text style={styles.label}>Amount</Text>
+          <Text style={styles.label}>{t('common.amount')}</Text>
           <Text style={styles.value}>{item.amount}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Total</Text>
+          <Text style={styles.label}>{t('common.total')}</Text>
           <Text style={[styles.value, styles.priceValue]}>
             ${item.totalPrice?.toFixed(2) ?? '—'}
           </Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Date</Text>
+          <Text style={styles.label}>{t('common.date')}</Text>
           <Text style={styles.dateValue}>{date}</Text>
         </View>
       </View>
@@ -135,6 +145,7 @@ function OrderCard({ item, index }: { item: OrderDTO; index: number }): React.JS
 export default function ProfileScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const { language, setLanguage, t } = useI18n();
   const { user } = useAppSelector((s) => s.auth);
   const { myOrders, loading, error, fromCache } = useAppSelector((s) => s.orders);
 
@@ -197,8 +208,8 @@ export default function ProfileScreen(): React.JSX.Element {
             <MaterialCommunityIcons name="account" size={20} color={colors.textSecondary} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Profile & Orders</Text>
-            <Text style={styles.headerSubtitle}>Manage your account and track your trades</Text>
+            <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('profile.subtitle')}</Text>
           </View>
         </View>
 
@@ -217,9 +228,9 @@ export default function ProfileScreen(): React.JSX.Element {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {user?.email?.split('@')[0] ?? 'Guest'}
+                {user?.email?.split('@')[0] ?? t('profile.guest')}
               </Text>
-              <Text style={styles.email}>{user?.email ?? 'Not signed in'}</Text>
+              <Text style={styles.email}>{user?.email ?? t('profile.notSignedIn')}</Text>
             </View>
             <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7}>
               <MaterialCommunityIcons name="cog" size={20} color={colors.textMuted} />
@@ -230,12 +241,32 @@ export default function ProfileScreen(): React.JSX.Element {
           <View style={styles.badges}>
             <View style={styles.badgeVerified}>
               <MaterialCommunityIcons name="check-circle" size={12} color={colors.success} />
-              <Text style={styles.badgeVerifiedText}>Verified Account</Text>
+              <Text style={styles.badgeVerifiedText}>{t('profile.verified')}</Text>
             </View>
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>
-                {user?.role ? user.role.replace('ROLE_', '') : 'Guest'}
+                {user?.role ? user.role.replace('ROLE_', '') : t('profile.guest')}
               </Text>
+            </View>
+          </View>
+
+          <View style={styles.languageSection}>
+            <Text style={styles.languageTitle}>{t('profile.language')}</Text>
+            <View style={styles.languageOptions}>
+              {languages.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.languageButton, language === item && styles.languageButtonActive]}
+                  onPress={() => {
+                    void setLanguage(item);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.languageButtonText, language === item && styles.languageButtonTextActive]}>
+                    {LANGUAGE_LABELS[item]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -244,7 +275,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <View style={styles.stat}>
               <View style={styles.statLabel}>
                 <MaterialCommunityIcons name="wallet" size={13} color={colors.textMuted} />
-                <Text style={styles.statLabelText}>Total Portfolio</Text>
+                <Text style={styles.statLabelText}>{t('profile.totalPortfolio')}</Text>
               </View>
               <Text style={styles.statValue}>
                 ${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -253,14 +284,14 @@ export default function ProfileScreen(): React.JSX.Element {
             <View style={[styles.stat, styles.statBorder]}>
               <View style={styles.statLabel}>
                 <MaterialCommunityIcons name="check-circle-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.statLabelText}>Completed</Text>
+                <Text style={styles.statLabelText}>{t('profile.completed')}</Text>
               </View>
               <Text style={styles.statValue}>{completedCount}</Text>
             </View>
             <View style={[styles.stat, styles.statBorder]}>
               <View style={styles.statLabel}>
                 <MaterialCommunityIcons name="receipt" size={13} color={colors.textMuted} />
-                <Text style={styles.statLabelText}>Orders</Text>
+                <Text style={styles.statLabelText}>{t('common.orders')}</Text>
               </View>
               <Text style={styles.statValue}>{myOrders.length}</Text>
             </View>
@@ -275,7 +306,7 @@ export default function ProfileScreen(): React.JSX.Element {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, activeTab === 'portfolio' && styles.tabTextActive]}>
-              Portfolio Overview
+              {t('profile.portfolioOverview')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -284,7 +315,7 @@ export default function ProfileScreen(): React.JSX.Element {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
-              Order History
+              {t('profile.orderHistory')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -292,7 +323,7 @@ export default function ProfileScreen(): React.JSX.Element {
         {/* Tab Content */}
         {activeTab === 'portfolio' ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Holdings</Text>
+            <Text style={styles.sectionTitle}>{t('profile.holdings')}</Text>
             {loading && myOrders.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -300,8 +331,8 @@ export default function ProfileScreen(): React.JSX.Element {
             ) : holdings.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="wallet-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No completed orders yet</Text>
-                <Text style={styles.emptySubtext}>Place an order on the calculator screen to build your portfolio</Text>
+                <Text style={styles.emptyText}>{t('profile.noCompletedOrders')}</Text>
+                <Text style={styles.emptySubtext}>{t('profile.placeOrderHint')}</Text>
               </View>
             ) : (
               <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
@@ -326,11 +357,11 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>Recent Activity</Text>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>{t('profile.recentActivity')}</Text>
             {recentOrders.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="history" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No recent activity</Text>
+                <Text style={styles.emptyText}>{t('profile.noRecentActivity')}</Text>
               </View>
             ) : (
               <View style={[styles.profileCard, { paddingVertical: spacing.sm }]}>
@@ -351,7 +382,7 @@ export default function ProfileScreen(): React.JSX.Element {
                       <View style={styles.holdingInfoWrapper}>
                         <Text style={styles.holdingIconPlain}>{meta.icon}</Text>
                         <View style={styles.holdingInfo}>
-                          <Text style={styles.holdingSymbol}>Order {order.currencyCode}</Text>
+                          <Text style={styles.holdingSymbol}>{t('common.order')} {order.currencyCode}</Text>
                           <Text style={styles.holdingAmount}>{dateStr}</Text>
                         </View>
                       </View>
@@ -360,7 +391,7 @@ export default function ProfileScreen(): React.JSX.Element {
                           ${(order.totalPrice ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </Text>
                         <Text style={[styles.holdingAmount, { color: statusInfo.color }]}>
-                          {statusLabel(order.status)}
+                          {statusLabel(order.status, t)}
                         </Text>
                       </View>
                     </View>
@@ -371,11 +402,11 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order History</Text>
+            <Text style={styles.sectionTitle}>{t('profile.orderHistory')}</Text>
             {fromCache && (
               <View style={styles.offlineBanner}>
                 <MaterialCommunityIcons name="cloud-off-outline" size={14} color={colors.warning} />
-                <Text style={styles.offlineText}>Cached data (offline)</Text>
+                <Text style={styles.offlineText}>{t('profile.cached')}</Text>
               </View>
             )}
             
@@ -391,11 +422,11 @@ export default function ProfileScreen(): React.JSX.Element {
             ) : myOrders.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="receipt" size={64} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No orders yet</Text>
+                <Text style={styles.emptyText}>{t('profile.noOrders')}</Text>
               </View>
             ) : (
               myOrders.map((order, index) => (
-                <OrderCard key={order.id} item={order} index={index} />
+                <OrderCard key={order.id} item={order} index={index} t={t} />
               ))
             )}
           </View>
@@ -409,7 +440,7 @@ export default function ProfileScreen(): React.JSX.Element {
             activeOpacity={0.85}
           >
             <MaterialCommunityIcons name="shield-account" size={20} color="#fff" />
-            <Text style={styles.adminButtonText}>Admin Panel</Text>
+            <Text style={styles.adminButtonText}>{t('profile.adminPanel')}</Text>
           </TouchableOpacity>
         )}
 
@@ -419,7 +450,7 @@ export default function ProfileScreen(): React.JSX.Element {
           activeOpacity={0.85}
         >
           <MaterialCommunityIcons name="logout" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t('profile.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </FadeInScreen>
@@ -475,6 +506,29 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   roleText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
+
+  languageSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  languageTitle: { fontSize: 12, color: colors.textMuted, marginBottom: 8, fontWeight: '600' },
+  languageOptions: { flexDirection: 'row', gap: 8 },
+  languageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  languageButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  languageButtonText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  languageButtonTextActive: { color: '#fff' },
 
   statsRow: {
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md,

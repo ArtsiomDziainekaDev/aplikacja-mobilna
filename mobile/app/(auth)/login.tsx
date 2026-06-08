@@ -20,6 +20,7 @@ import haptics from '../../src/utils/haptics';
 import FadeInScreen from '../../src/components/FadeInScreen';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
+import { useI18n } from '../../src/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function LoginScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector((s) => s.auth);
   const isConnected = useConnectivity();
+  const { t } = useI18n();
 
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
@@ -52,11 +54,11 @@ export default function LoginScreen(): React.JSX.Element {
   const handleLogin = useCallback(async () => {
     await haptics.lightTap();
     if (!email.trim() || !password) {
-      Alert.alert('Error', 'Enter email and password');
+      Alert.alert(t('common.error'), t('auth.emailAndPasswordRequired'));
       return;
     }
     if (!isConnected) {
-      Alert.alert('No connection', 'Check your internet connection.');
+      Alert.alert(t('common.noConnection'), t('auth.checkConnection'));
       return;
     }
     dispatch(clearError());
@@ -64,7 +66,7 @@ export default function LoginScreen(): React.JSX.Element {
     if (login.fulfilled.match(result)) {
       router.replace('/(tabs)');
     }
-  }, [email, password, dispatch, isConnected]);
+  }, [email, password, dispatch, isConnected, t]);
 
   const pressIn = (): void => {
     Animated.spring(buttonScale, {
@@ -104,16 +106,16 @@ export default function LoginScreen(): React.JSX.Element {
                   },
                 ]}
             >
-              <Text style={styles.title}>Sign In</Text>
+              <Text style={styles.title}>{t('auth.signIn')}</Text>
               {error ? (
                   <>
                     <Text style={styles.error}>{error}</Text>
-                    <Text style={styles.apiHint}>Adres API: {getBaseURL()}</Text>
+                    <Text style={styles.apiHint}>{t('auth.apiAddress', { url: getBaseURL() })}</Text>
                   </>
               ) : null}
               <TextInput
                   style={styles.input}
-                  placeholder="Email address"
+                  placeholder={t('common.email')}
                   placeholderTextColor={colors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -123,7 +125,7 @@ export default function LoginScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder={t('common.password')}
                   placeholderTextColor={colors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -139,7 +141,7 @@ export default function LoginScreen(): React.JSX.Element {
                     disabled={loading}
                     activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
+                  <Text style={styles.buttonText}>{loading ? t('auth.signingIn') : t('auth.signIn')}</Text>
                 </TouchableOpacity>
               </Animated.View>
               <Link href="/(auth)/register" asChild>
@@ -150,7 +152,7 @@ export default function LoginScreen(): React.JSX.Element {
                     }}
                     activeOpacity={0.85}
                 >
-                  <Text style={styles.linkText}>Don&apos;t have an account? Sign Up</Text>
+                  <Text style={styles.linkText}>{t('auth.goToRegister')}</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>

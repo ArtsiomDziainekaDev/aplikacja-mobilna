@@ -22,6 +22,7 @@ import haptics from '../src/utils/haptics';
 import { colors } from '../src/theme/colors';
 import { spacing } from '../src/theme/spacing';
 import type { OrderStatus } from '../src/types';
+import { TranslationKey, useI18n } from '../src/i18n';
 
 interface AdminOrder {
   id: number;
@@ -35,14 +36,14 @@ interface AdminOrder {
   updatedAt: string;
 }
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: 'Oczekuje płatności',
-  PENDING_CONFIRMATION: 'Oczekuje potwierdzenia',
-  CONFIRMED: 'Potwierdzony',
-  IN_PROGRESS: 'W trakcie',
-  READY_FOR_PICKUP: 'Gotowy do odbioru',
-  COMPLETED: 'Zakończony',
-  CANCELLED: 'Anulowany',
+const STATUS_LABEL_KEYS: Record<OrderStatus, TranslationKey> = {
+  PENDING_PAYMENT: 'admin.pendingPayment',
+  PENDING_CONFIRMATION: 'admin.pendingConfirmation',
+  CONFIRMED: 'admin.confirmed',
+  IN_PROGRESS: 'admin.inProgress',
+  READY_FOR_PICKUP: 'admin.readyForPickup',
+  COMPLETED: 'common.completed',
+  CANCELLED: 'admin.cancelled',
 };
 
 const STATUS_OPTIONS: OrderStatus[] = [
@@ -57,6 +58,7 @@ const STATUS_OPTIONS: OrderStatus[] = [
 
 export default function AdminScreen(): React.JSX.Element | null {
   const isAdmin = useAppSelector((s) => s.auth.isAdmin);
+  const { t } = useI18n();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,12 +101,12 @@ export default function AdminScreen(): React.JSX.Element | null {
       const msg = e && typeof e === 'object' && 'response' in e
         ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
         : null;
-      setError(msg || 'Błąd ładowania zamówień');
+      setError(msg || t('admin.errorLoading'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -127,11 +129,11 @@ export default function AdminScreen(): React.JSX.Element | null {
       const msg = e && typeof e === 'object' && 'response' in e
         ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
         : null;
-      Alert.alert('Błąd', msg || 'Nie udało się zmienić statusu');
+      Alert.alert(t('admin.errorTitle'), msg || t('admin.statusChangeFailed'));
     } finally {
       setUpdatingId(null);
     }
-  }, [fetchOrders]);
+  }, [fetchOrders, t]);
 
   const openStatusModal = useCallback((order: AdminOrder) => {
     void haptics.mediumTap();
@@ -159,20 +161,20 @@ export default function AdminScreen(): React.JSX.Element | null {
   const renderItem = ({ item }: { item: AdminOrder }) => (
     <View style={styles.card}>
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Użytkownik</Text>
+        <Text style={styles.label}>{t('admin.user')}</Text>
         <Text style={styles.value}>{item.userEmail}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Waluta / Ilość</Text>
+        <Text style={styles.label}>{t('admin.currencyAmount')}</Text>
         <Text style={styles.value}>{item.currencyCode} — {item.amount}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Suma</Text>
+        <Text style={styles.label}>{t('admin.sum')}</Text>
         <Text style={styles.value}>{(item.totalPrice ?? 0).toFixed(2)} PLN</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Status</Text>
-        <Text style={styles.statusText}>{STATUS_LABELS[item.status]}</Text>
+        <Text style={styles.label}>{t('common.status')}</Text>
+        <Text style={styles.statusText}>{t(STATUS_LABEL_KEYS[item.status])}</Text>
       </View>
       <TouchableOpacity
         style={[styles.statusButton, updatingId === item.id && styles.statusButtonDisabled]}
@@ -184,7 +186,7 @@ export default function AdminScreen(): React.JSX.Element | null {
         ) : (
           <>
             <MaterialCommunityIcons name="pencil" size={18} color="#fff" />
-            <Text style={styles.statusButtonText}>Zmień status</Text>
+            <Text style={styles.statusButtonText}>{t('admin.updateStatus')}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -204,7 +206,7 @@ export default function AdminScreen(): React.JSX.Element | null {
           >
             <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Panel administratora</Text>
+          <Text style={styles.headerTitle}>{t('admin.title')}</Text>
         </View>
         {error && (
           <View style={styles.errorBanner}>
@@ -215,7 +217,7 @@ export default function AdminScreen(): React.JSX.Element | null {
                 fetchOrders(false);
               }}
             >
-              <Text style={styles.retryText}>Spróbuj ponownie</Text>
+              <Text style={styles.retryText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -238,7 +240,7 @@ export default function AdminScreen(): React.JSX.Element | null {
             }
             ListEmptyComponent={
               <View style={styles.centered}>
-                <Text style={styles.emptyText}>Brak zamówień</Text>
+                <Text style={styles.emptyText}>{t('admin.empty')}</Text>
               </View>
             }
           />
@@ -262,7 +264,7 @@ export default function AdminScreen(): React.JSX.Element | null {
             >
               <Pressable onPress={(e) => e.stopPropagation()}>
                 <Text style={styles.modalTitle}>
-                  Zamówienie #{statusModalOrder?.id} — zmiana statusu
+                  {t('admin.orderStatusTitle', { id: statusModalOrder?.id ?? '' })}
                 </Text>
                 <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
                   {STATUS_OPTIONS.map((s) => (
@@ -272,12 +274,12 @@ export default function AdminScreen(): React.JSX.Element | null {
                       onPress={() => onSelectStatus(s)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.modalOptionText}>{STATUS_LABELS[s]}</Text>
+                      <Text style={styles.modalOptionText}>{t(STATUS_LABEL_KEYS[s])}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
                 <TouchableOpacity style={styles.modalCancel} onPress={closeStatusModal}>
-                  <Text style={styles.modalCancelText}>Anuluj</Text>
+                  <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </Pressable>
             </Animated.View>

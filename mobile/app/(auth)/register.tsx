@@ -19,6 +19,7 @@ import haptics from '../../src/utils/haptics';
 import FadeInScreen from '../../src/components/FadeInScreen';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
+import { useI18n } from '../../src/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function RegisterScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector((s) => s.auth);
   const isConnected = useConnectivity();
+  const { t } = useI18n();
 
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
@@ -52,25 +54,25 @@ export default function RegisterScreen(): React.JSX.Element {
   const handleRegister = useCallback(async () => {
     await haptics.lightTap();
     if (!username.trim() || !email.trim() || !password) {
-      Alert.alert('Error', 'Fill in all fields');
+      Alert.alert(t('common.error'), t('auth.fillAllFields'));
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('common.error'), t('auth.passwordTooShort'));
       return;
     }
     if (!isConnected) {
-      Alert.alert('No connection', 'Check your internet connection.');
+      Alert.alert(t('common.noConnection'), t('auth.checkConnection'));
       return;
     }
     dispatch(clearError());
     const result = await dispatch(register({ username: username.trim(), email: email.trim(), password }));
     if (register.fulfilled.match(result)) {
-      Alert.alert('Success', 'Account created. Please log in.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+      Alert.alert(t('common.success'), t('auth.accountCreated'), [
+        { text: t('common.ok'), onPress: () => router.replace('/(auth)/login') },
       ]);
     }
-  }, [username, email, password, dispatch, isConnected]);
+  }, [username, email, password, dispatch, isConnected, t]);
 
   const pressIn = (): void => {
     Animated.spring(buttonScale, {
@@ -110,11 +112,11 @@ export default function RegisterScreen(): React.JSX.Element {
                   },
                 ]}
             >
-              <Text style={styles.title}>Sign Up</Text>
+              <Text style={styles.title}>{t('auth.createAccount')}</Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <TextInput
                   style={styles.input}
-                  placeholder="Username"
+                  placeholder={t('common.username')}
                   placeholderTextColor={colors.textSecondary}
                   value={username}
                   onChangeText={setUsername}
@@ -122,7 +124,7 @@ export default function RegisterScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Email address"
+                  placeholder={t('common.email')}
                   placeholderTextColor={colors.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -132,7 +134,7 @@ export default function RegisterScreen(): React.JSX.Element {
               />
               <TextInput
                   style={styles.input}
-                  placeholder="Password (min. 6 characters)"
+                  placeholder={t('auth.passwordMin')}
                   placeholderTextColor={colors.textSecondary}
                   value={password}
                   onChangeText={setPassword}
@@ -148,7 +150,7 @@ export default function RegisterScreen(): React.JSX.Element {
                     disabled={loading}
                     activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>{loading ? 'Signing up...' : 'Sign Up'}</Text>
+                  <Text style={styles.buttonText}>{loading ? t('auth.signingUp') : t('auth.createAccount')}</Text>
                 </TouchableOpacity>
               </Animated.View>
               <Link href="/(auth)/login" asChild>
@@ -159,7 +161,7 @@ export default function RegisterScreen(): React.JSX.Element {
                     }}
                     activeOpacity={0.85}
                 >
-                  <Text style={styles.linkText}>Already have an account? Sign In</Text>
+                  <Text style={styles.linkText}>{t('auth.alreadyHaveAccount')}</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>
