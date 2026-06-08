@@ -207,13 +207,19 @@ export default function SettingsScreen(): React.JSX.Element {
     if (!loaded) dispatch(loadProfile());
   }, [dispatch, loaded]);
 
-  const persistSettings = useCallback(() => {
-    dispatch(saveProfile(settings));
-  }, [dispatch, settings]);
-
+  // Persist settings whenever their content actually changes. We compare a
+  // serialized snapshot instead of the object reference: a save round-trip (or
+  // any normalization) can hand back a new-but-equal object, and re-saving on
+  // that would create an infinite "change -> save -> change" loop that freezes
+  // the app.
+  const lastSavedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (loaded) persistSettings();
-  }, [settings, loaded, persistSettings]);
+    if (!loaded) return;
+    const snapshot = JSON.stringify(settings);
+    if (lastSavedRef.current === snapshot) return;
+    lastSavedRef.current = snapshot;
+    dispatch(saveProfile(settings));
+  }, [settings, loaded, dispatch]);
 
   useEffect(() => {
     if (loaded && settings.language !== language) {
