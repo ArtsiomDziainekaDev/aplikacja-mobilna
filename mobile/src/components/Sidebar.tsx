@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Platform,
   PanResponder,
   Alert,
-  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -18,13 +17,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { useConnectivity } from '../hooks/useConnectivity';
 import { logout } from '../store/slices/authSlice';
-import { loadProfile } from '../store/slices/profileSlice';
 import { colors } from '../theme/colors';
 import { TranslationKey, useI18n } from '../i18n';
 
 export const SIDEBAR_WIDTH = 240;
 
-const SETTINGS_ROUTE = '/settings' as Href;
 const PROFILE_ROUTE = '/profile' as Href;
 
 interface NavItem {
@@ -41,7 +38,6 @@ const mainNavItems: NavItem[] = [
 
 const accountNavItems: NavItem[] = [
   { labelKey: 'nav.profile', icon: 'account', path: PROFILE_ROUTE },
-  { labelKey: 'nav.settings', icon: 'cog', path: SETTINGS_ROUTE },
 ];
 
 const ADMIN_NAV_ITEM: NavItem = { labelKey: 'common.admin', icon: 'shield-account', path: '/admin' as Href };
@@ -58,7 +54,6 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
   const segments = useSegments() as string[];
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
-  const { settings, loaded: profileLoaded } = useAppSelector((s) => s.profile);
   const isAdmin = user?.role === 'ROLE_ADMIN';
   const isConnected = useConnectivity();
   const insets = useSafeAreaInsets();
@@ -67,10 +62,6 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
   const slideAnim = useRef(new Animated.Value(isDesktop ? 0 : -SIDEBAR_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const [isVisible, setIsVisible] = useState(isOpen);
-
-  useEffect(() => {
-    if (!profileLoaded) dispatch(loadProfile());
-  }, [dispatch, profileLoaded]);
 
   useEffect(() => {
     if (isDesktop) {
@@ -178,13 +169,6 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
     return segments.includes(routeName) || pathname === target || pathname.endsWith(`/${routeName}`);
   }, [pathname, segments]);
 
-  const displayName = useMemo(
-    () => settings.displayName.trim() || user?.email?.split('@')[0] || t('profile.guest'),
-    [settings.displayName, user?.email, t],
-  );
-  const avatarLetter = (displayName || user?.email || '?').charAt(0).toUpperCase();
-  const email = user?.email ?? t('profile.notSignedIn');
-
   const renderNavItems = (items: NavItem[]) =>
     items.map((item) => {
       const active = isActive(item.path);
@@ -244,33 +228,6 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
       <View style={{ flex: 1 }} />
 
       <View style={styles.bottomSection}>
-        <View style={styles.userCard}>
-          <TouchableOpacity
-            style={styles.userCardMain}
-            onPress={() => handleNavClick(PROFILE_ROUTE)}
-            activeOpacity={0.8}
-          >
-            {settings.avatarUri ? (
-              <Image source={{ uri: settings.avatarUri }} style={styles.userAvatarImage} />
-            ) : (
-              <View style={styles.userAvatar}>
-                <Text style={styles.userAvatarLetter}>{avatarLetter}</Text>
-              </View>
-            )}
-            <View style={styles.userInfo}>
-              <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
-              <Text style={styles.userEmail} numberOfLines={1}>{email}</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.userSettingsBtn}
-            onPress={() => handleNavClick(SETTINGS_ROUTE)}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="cog" size={18} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-        </View>
-
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <MaterialCommunityIcons name="logout" size={20} color="rgba(255,255,255,0.5)" />
           <Text style={styles.logoutText}>{t('nav.logout')}</Text>
