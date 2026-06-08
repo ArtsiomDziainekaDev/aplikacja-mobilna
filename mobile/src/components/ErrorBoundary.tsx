@@ -15,7 +15,6 @@ interface State {
 /** Łapie błędy renderowania i wyświetla komunikat z przyciskiem retry. */
 export class ErrorBoundary extends Component<Props, State> {
   static contextType = I18nContext;
-  declare context: React.ContextType<typeof I18nContext>;
 
   state: State = { hasError: false, error: null };
 
@@ -34,7 +33,8 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.hasError && this.state.error) {
       if (this.props.fallback) return this.props.fallback;
-      const t = this.context?.t;
+      const context = this.context as React.ContextType<typeof I18nContext>;
+      const t = context?.t;
       return (
         <View style={styles.container}>
           <Text style={styles.title}>{t ? t('errorBoundary.title') : 'Coś poszło nie tak'}</Text>
