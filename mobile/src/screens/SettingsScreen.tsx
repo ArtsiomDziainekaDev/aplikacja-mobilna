@@ -24,10 +24,9 @@ import {
   loadProfile,
   saveProfile,
   updateSettings,
-  updateNotifications,
   updatePrivacy,
 } from '../store/slices/profileSlice';
-import type { CurrencyDisplayCode, AppLanguage, ProfileSettings } from '../types';
+import type { AppLanguage, ProfileSettings } from '../types';
 import { useI18n } from '../i18n';
 
 interface PickerOption<T extends string> {
@@ -170,13 +169,6 @@ function SettingsToggleRow({
   );
 }
 
-const CURRENCY_OPTIONS: PickerOption<CurrencyDisplayCode>[] = [
-  { label: '$ US Dollar (USD)', value: 'USD' },
-  { label: '€ Euro (EUR)', value: 'EUR' },
-  { label: 'zł Polish Zloty (PLN)', value: 'PLN' },
-  { label: '£ British Pound (GBP)', value: 'GBP' },
-];
-
 const LANGUAGE_OPTIONS: PickerOption<AppLanguage>[] = [
   { label: '🇬🇧 English', value: 'en' },
   { label: '🇵🇱 Polski', value: 'pl' },
@@ -184,10 +176,6 @@ const LANGUAGE_OPTIONS: PickerOption<AppLanguage>[] = [
 ];
 
 const EDIT_PROFILE_ROUTE = '/edit-profile' as Href;
-
-function currencyLabel(code: CurrencyDisplayCode): string {
-  return CURRENCY_OPTIONS.find((o) => o.value === code)?.label ?? code;
-}
 
 function languageLabel(code: AppLanguage): string {
   return LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code;
@@ -200,7 +188,6 @@ export default function SettingsScreen(): React.JSX.Element {
   const { settings, loaded } = useAppSelector((s) => s.profile);
   const { privacy } = settings;
 
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
   useEffect(() => {
@@ -298,58 +285,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
         <Text style={styles.sectionLabel}>{t('settings.preferences').toUpperCase()}</Text>
         <View style={styles.sectionCard}>
-          <SettingsToggleRow
-            icon="bell-ring"
-            label={t('settings.priceAlerts')}
-            value={settings.notifications.priceAlerts}
-            onToggle={(v) => {
-              const nextSettings = {
-                ...settings,
-                notifications: { ...settings.notifications, priceAlerts: v },
-              };
-              dispatch(updateNotifications({ priceAlerts: v }));
-              dispatch(saveProfile(nextSettings));
-            }}
-          />
-          <View style={styles.rowDivider} />
-          <SettingsToggleRow
-            icon="cart-check"
-            label={t('settings.orderUpdates')}
-            value={settings.notifications.orderUpdates}
-            onToggle={(v) => {
-              const nextSettings = {
-                ...settings,
-                notifications: { ...settings.notifications, orderUpdates: v },
-              };
-              dispatch(updateNotifications({ orderUpdates: v }));
-              dispatch(saveProfile(nextSettings));
-            }}
-          />
-          <View style={styles.rowDivider} />
-          <SettingsToggleRow
-            icon="newspaper"
-            label={t('settings.newsNotifications')}
-            value={settings.notifications.news}
-            onToggle={(v) => {
-              const nextSettings = {
-                ...settings,
-                notifications: { ...settings.notifications, news: v },
-              };
-              dispatch(updateNotifications({ news: v }));
-              dispatch(saveProfile(nextSettings));
-            }}
-          />
-          <View style={styles.rowDivider} />
-          <SettingsNavRow
-            icon="currency-usd"
-            label={t('settings.currencyDisplay')}
-            subtitle={currencyLabel(settings.currencyDisplay)}
-            onPress={() => {
-              void haptics.lightTap();
-              setShowCurrencyPicker(true);
-            }}
-          />
-          <View style={styles.rowDivider} />
           <SettingsNavRow
             icon="translate"
             label={t('settings.language')}
@@ -369,15 +304,6 @@ export default function SettingsScreen(): React.JSX.Element {
         <Text style={styles.versionText}>{t('settings.version')}</Text>
       </ScrollView>
 
-      <PickerModal
-        visible={showCurrencyPicker}
-        title={t('settings.currencyDisplay')}
-        options={CURRENCY_OPTIONS}
-        selected={settings.currencyDisplay}
-        onSelect={(v) => commitSettings({ ...settings, currencyDisplay: v })}
-        onClose={() => setShowCurrencyPicker(false)}
-        cancelLabel={t('settings.cancel')}
-      />
       <PickerModal
         visible={showLanguagePicker}
         title={t('settings.language')}

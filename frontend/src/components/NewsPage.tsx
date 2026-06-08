@@ -67,19 +67,18 @@ const formatTimeAgo = (dateString: string): string => {
   }
 };
 
-const MARKET_SUMMARY = [
-  { label: 'BTC Price', value: '$62,500', change: '+2.5%' },
-  { label: 'ETH Price', value: '$4,032', change: '+1.8%' },
-  { label: 'Market Cap', value: '$2.4T', change: '+3.2%' },
-  { label: '24h Volume', value: '$128B', change: 'Trading' },
-];
+interface MarketItem {
+  label: string;
+  value: string;
+  change: string;
+}
 
 const NewsPage: React.FC = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [marketData, setMarketData] = useState(MARKET_SUMMARY);
+  const [marketData, setMarketData] = useState<MarketItem[]>([]);
 
   // Fetch news from backend
   const fetchNews = async () => {
@@ -102,10 +101,9 @@ const NewsPage: React.FC = () => {
   // Fetch live market data from Binance
   const fetchMarketData = async () => {
     try {
-      const [tickerRes, globalRes] = await Promise.all([
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT"]'),
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'),
-      ]);
+      const tickerRes = await fetch(
+        'https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT"]',
+      );
       const tickers = await tickerRes.json();
       const btc = tickers.find((t: any) => t.symbol === 'BTCUSDT');
       const eth = tickers.find((t: any) => t.symbol === 'ETHUSDT');
@@ -123,11 +121,6 @@ const NewsPage: React.FC = () => {
             change: `${parseFloat(eth.priceChangePercent) >= 0 ? '+' : ''}${parseFloat(eth.priceChangePercent).toFixed(1)}%`,
           },
           {
-            label: 'Market Cap',
-            value: '$2.4T',
-            change: '+3.2%',
-          },
-          {
             label: '24h Volume',
             value: `$${(parseFloat(btc.quoteVolume) / 1e9).toFixed(0)}B`,
             change: 'Trading',
@@ -135,7 +128,8 @@ const NewsPage: React.FC = () => {
         ]);
       }
     } catch {
-      // Keep default market data
+      // Leave market summary empty rather than showing fabricated numbers.
+      setMarketData([]);
     }
   };
 
@@ -416,6 +410,7 @@ const NewsPage: React.FC = () => {
       )}
 
       {/* Market Summary */}
+      {marketData.length > 0 && (
       <Card
         sx={{
           p: 2.5,
@@ -436,7 +431,7 @@ const NewsPage: React.FC = () => {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
               gap: 3,
             }}
           >
@@ -462,6 +457,7 @@ const NewsPage: React.FC = () => {
           </Box>
         </CardContent>
       </Card>
+      )}
     </Box>
   );
 };

@@ -69,11 +69,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         log.debug("Checking if should not filter - Path: {}, Method: {}", path, method);
         
-        // Skip OPTIONS and public auth endpoints (also support /auth/**)
+        // Skip OPTIONS and public auth endpoints
         return HttpMethod.OPTIONS.matches(Objects.requireNonNull(method)) ||
                path.equals("/api/auth/signin") || 
-               path.equals("/api/auth/signup") ||
-               path.startsWith("/auth");
+               path.equals("/api/auth/signup");
     }
 
     @Override

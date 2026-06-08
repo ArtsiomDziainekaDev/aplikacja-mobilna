@@ -93,18 +93,11 @@ export interface NewsItem {
   tags: string[];
 }
 
-export type CurrencyDisplayCode = 'USD' | 'EUR' | 'PLN' | 'GBP';
 export type AppLanguage = 'en' | 'pl' | 'ru';
 
 export interface ProfileSettings {
   displayName: string;
   avatarUri: string | null;
-  notifications: {
-    priceAlerts: boolean;
-    orderUpdates: boolean;
-    news: boolean;
-  };
-  currencyDisplay: CurrencyDisplayCode;
   language: AppLanguage;
   privacy: {
     showPortfolio: boolean;

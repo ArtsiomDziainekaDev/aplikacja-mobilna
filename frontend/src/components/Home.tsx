@@ -88,7 +88,7 @@ const Home: React.FC = () => {
   const [priceError, setPriceError] = useState<string | null>(null);
   
   // Favorites State
-  const [favorites, setFavorites] = useState<string[]>(['BTC', 'ETH', 'SOL']);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isEditingFavs, setIsEditingFavs] = useState(false);
 
   useEffect(() => {
@@ -132,7 +132,7 @@ const Home: React.FC = () => {
     const fetchFavorites = async () => {
       try {
         const { data } = await axiosInstance.get('/api/crypto/favorites');
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
           setFavorites(data);
         }
       } catch (err) {
@@ -424,7 +424,6 @@ const Home: React.FC = () => {
                 maxWidth: 300,
                 p: 2.5,
                 position: 'relative',
-                cursor: 'pointer',
                 background: 'rgba(255, 255, 255, 0.04)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.08)',

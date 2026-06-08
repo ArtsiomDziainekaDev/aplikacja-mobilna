@@ -61,7 +61,7 @@ export default function HomeScreen(): React.JSX.Element {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
 
-  const [favorites, setFavorites] = useState<string[]>(['BTC', 'ETH', 'SOL']);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isEditingFavs, setIsEditingFavs] = useState(false);
   const [fiatPrices, setFiatPrices] = useState<Record<string, number>>({ USD: 1 });
 
@@ -102,11 +102,11 @@ export default function HomeScreen(): React.JSX.Element {
     const fetchFavorites = async () => {
       try {
         const { data } = await api.get<string[]>('/api/crypto/favorites');
-        if (!cancelled && Array.isArray(data) && data.length > 0) {
+        if (!cancelled && Array.isArray(data)) {
           setFavorites(data);
         }
       } catch {
-        /* Keep local defaults when favorites cannot be loaded. */
+        /* Leave favorites empty when they cannot be loaded. */
       }
     };
     fetchFavorites();
@@ -365,10 +365,9 @@ export default function HomeScreen(): React.JSX.Element {
           {favoriteCryptos.map((crypto) => {
             const isPositive = crypto.change24h >= 0;
             return (
-              <TouchableOpacity
+              <View
                 key={crypto.symbol}
                 style={styles.favCard}
-                activeOpacity={0.7}
               >
                 {isEditingFavs && (
                   <TouchableOpacity
@@ -396,7 +395,7 @@ export default function HomeScreen(): React.JSX.Element {
                 <Text style={styles.priceCardPrice}>
                   ${crypto.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </Text>
-              </TouchableOpacity>
+              </View>
             );
           })}
 

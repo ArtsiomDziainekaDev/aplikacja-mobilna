@@ -3,18 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ProfileSettings } from '../../types';
 
 const STORAGE_KEY = '@crypto_profile_settings';
-const CURRENCY_CODES = ['USD', 'EUR', 'PLN', 'GBP'] as const;
 const APP_LANGUAGES = ['en', 'pl', 'ru'] as const;
 
 const defaultSettings: ProfileSettings = {
   displayName: '',
   avatarUri: null,
-  notifications: {
-    priceAlerts: true,
-    orderUpdates: true,
-    news: false,
-  },
-  currencyDisplay: 'USD',
   language: 'en',
   privacy: {
     showPortfolio: true,
@@ -36,10 +29,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isCurrencyDisplayCode(value: unknown): value is ProfileSettings['currencyDisplay'] {
-  return typeof value === 'string' && CURRENCY_CODES.includes(value as ProfileSettings['currencyDisplay']);
-}
-
 function isAppLanguage(value: unknown): value is ProfileSettings['language'] {
   return typeof value === 'string' && APP_LANGUAGES.includes(value as ProfileSettings['language']);
 }
@@ -47,11 +36,7 @@ function isAppLanguage(value: unknown): value is ProfileSettings['language'] {
 function normalizeProfileSettings(value: unknown): ProfileSettings {
   if (!isRecord(value)) return defaultSettings;
 
-  const notifications = isRecord(value.notifications) ? value.notifications : {};
   const privacy = isRecord(value.privacy) ? value.privacy : {};
-  const currencyDisplay = isCurrencyDisplayCode(value.currencyDisplay)
-    ? value.currencyDisplay
-    : defaultSettings.currencyDisplay;
   const language = isAppLanguage(value.language)
     ? value.language
     : defaultSettings.language;
@@ -59,18 +44,6 @@ function normalizeProfileSettings(value: unknown): ProfileSettings {
   return {
     displayName: typeof value.displayName === 'string' ? value.displayName : defaultSettings.displayName,
     avatarUri: typeof value.avatarUri === 'string' ? value.avatarUri : null,
-    notifications: {
-      priceAlerts: typeof notifications.priceAlerts === 'boolean'
-        ? notifications.priceAlerts
-        : defaultSettings.notifications.priceAlerts,
-      orderUpdates: typeof notifications.orderUpdates === 'boolean'
-        ? notifications.orderUpdates
-        : defaultSettings.notifications.orderUpdates,
-      news: typeof notifications.news === 'boolean'
-        ? notifications.news
-        : defaultSettings.notifications.news,
-    },
-    currencyDisplay,
     language,
     privacy: {
       showPortfolio: typeof privacy.showPortfolio === 'boolean'
@@ -111,15 +84,6 @@ const profileSlice = createSlice({
     updateSettings(state, action: PayloadAction<Partial<ProfileSettings>>) {
       state.settings = normalizeProfileSettings({ ...state.settings, ...action.payload });
     },
-    updateNotifications(
-      state,
-      action: PayloadAction<Partial<ProfileSettings['notifications']>>,
-    ) {
-      state.settings.notifications = {
-        ...state.settings.notifications,
-        ...action.payload,
-      };
-    },
     updatePrivacy(
       state,
       action: PayloadAction<Partial<ProfileSettings['privacy']>>,
@@ -141,6 +105,5 @@ const profileSlice = createSlice({
   },
 });
 
-export const { updateSettings, updateNotifications, updatePrivacy } =
-  profileSlice.actions;
+export const { updateSettings, updatePrivacy } = profileSlice.actions;
 export default profileSlice.reducer;

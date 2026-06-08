@@ -136,7 +136,7 @@ function OrderCard({
         <View style={styles.row}>
           <Text style={styles.label}>{t('common.total')}</Text>
           <Text style={[styles.value, styles.priceValue]}>
-            ${item.totalPrice?.toFixed(2) ?? '—'}
+            {item.totalPrice != null ? `${item.totalPrice.toFixed(2)} PLN` : '—'}
           </Text>
         </View>
         <View style={styles.row}>
@@ -263,7 +263,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.statLabelText}>{t('profile.totalPortfolio')}</Text>
               </View>
               <Text style={styles.statValue}>
-                {showPortfolio ? `$${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
+                {showPortfolio ? `${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })} PLN` : '••••'}
               </Text>
             </View>
             <View style={[styles.stat, styles.statBorder]}>
@@ -351,7 +351,7 @@ export default function ProfileScreen(): React.JSX.Element {
                         <Text style={styles.holdingAmount}>{h.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} {h.symbol}</Text>
                       </View>
                     </View>
-                    <Text style={styles.holdingValue}>${h.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+                    <Text style={styles.holdingValue}>{h.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} PLN</Text>
                   </View>
                 ))}
               </View>
@@ -396,7 +396,7 @@ export default function ProfileScreen(): React.JSX.Element {
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.holdingValue}>
-                          ${(order.totalPrice ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          {(order.totalPrice ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} PLN
                         </Text>
                         <Text style={[styles.holdingAmount, { color: statusInfo.color }]}>
                           {statusLabel(order.status, t)}

@@ -192,7 +192,7 @@ const ProfilePage: React.FC = () => {
                 </Typography>
               </Box>
               <Typography sx={{ fontWeight: 800, fontSize: '1.5rem' }}>
-                ${totalPortfolio.toLocaleString()}
+                {totalPortfolio.toLocaleString()} PLN
               </Typography>
             </Box>
             <Box sx={{ flex: 1 }}>
@@ -292,7 +292,7 @@ const ProfilePage: React.FC = () => {
                       </Box>
                     </Box>
                     <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                      ${holding.value.toLocaleString()}
+                      {holding.value.toLocaleString()} PLN
                     </Typography>
                   </Box>
                 ))
@@ -349,7 +349,7 @@ const ProfilePage: React.FC = () => {
                         color: '#fff',
                       }}
                     >
-                      ${(order.totalPrice ?? 0).toLocaleString()}
+                      {(order.totalPrice ?? 0).toLocaleString()} PLN
                     </Typography>
                   </Box>
                 ))
@@ -406,7 +406,7 @@ const ProfilePage: React.FC = () => {
                         <TableCell sx={{ fontWeight: 600 }}>{order.currencyCode}</TableCell>
                         <TableCell align="right">{order.amount}</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700, color: '#fff' }}>
-                          ${(order.totalPrice || 0).toFixed(2)}
+                          {(order.totalPrice || 0).toFixed(2)} PLN
                         </TableCell>
                         <TableCell>
                           <Chip

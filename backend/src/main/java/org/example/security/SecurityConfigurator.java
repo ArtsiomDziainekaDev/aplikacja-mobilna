@@ -47,7 +47,6 @@ public class SecurityConfigurator {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/api/auth/signin", "/api/auth/signup").permitAll()
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/currencies", "/api/currencies/**").permitAll()
@@ -98,7 +97,7 @@ public class SecurityConfigurator {
             "Access-Control-Request-Method",
             "Access-Control-Request-Headers"
         ));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Data-Source"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
