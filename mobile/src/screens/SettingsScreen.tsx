@@ -27,7 +27,7 @@ import {
   updateNotifications,
   updatePrivacy,
 } from '../store/slices/profileSlice';
-import type { CurrencyDisplayCode, AppLanguage } from '../types';
+import type { CurrencyDisplayCode, AppLanguage, ProfileSettings } from '../types';
 import { useI18n } from '../i18n';
 
 interface PickerOption<T extends string> {
@@ -207,13 +207,13 @@ export default function SettingsScreen(): React.JSX.Element {
     if (!loaded) dispatch(loadProfile());
   }, [dispatch, loaded]);
 
-  const persistSettings = useCallback(() => {
-    dispatch(saveProfile(settings));
-  }, [dispatch, settings]);
-
-  useEffect(() => {
-    if (loaded) persistSettings();
-  }, [settings, loaded, persistSettings]);
+  const commitSettings = useCallback(
+    (nextSettings: ProfileSettings) => {
+      dispatch(updateSettings(nextSettings));
+      dispatch(saveProfile(nextSettings));
+    },
+    [dispatch],
+  );
 
   useEffect(() => {
     if (loaded && settings.language !== language) {
@@ -234,9 +234,17 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handlePrivacyToggle = useCallback(
     (key: keyof typeof privacy) => {
-      dispatch(updatePrivacy({ [key]: !privacy[key] }));
+      const nextSettings = {
+        ...settings,
+        privacy: {
+          ...settings.privacy,
+          [key]: !settings.privacy[key],
+        },
+      };
+      dispatch(updatePrivacy({ [key]: nextSettings.privacy[key] }));
+      dispatch(saveProfile(nextSettings));
     },
-    [dispatch, privacy],
+    [dispatch, settings],
   );
 
   return (
@@ -293,21 +301,42 @@ export default function SettingsScreen(): React.JSX.Element {
             icon="bell-ring"
             label={t('settings.priceAlerts')}
             value={settings.notifications.priceAlerts}
-            onToggle={(v) => dispatch(updateNotifications({ priceAlerts: v }))}
+            onToggle={(v) => {
+              const nextSettings = {
+                ...settings,
+                notifications: { ...settings.notifications, priceAlerts: v },
+              };
+              dispatch(updateNotifications({ priceAlerts: v }));
+              dispatch(saveProfile(nextSettings));
+            }}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="cart-check"
             label={t('settings.orderUpdates')}
             value={settings.notifications.orderUpdates}
-            onToggle={(v) => dispatch(updateNotifications({ orderUpdates: v }))}
+            onToggle={(v) => {
+              const nextSettings = {
+                ...settings,
+                notifications: { ...settings.notifications, orderUpdates: v },
+              };
+              dispatch(updateNotifications({ orderUpdates: v }));
+              dispatch(saveProfile(nextSettings));
+            }}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="newspaper"
             label={t('settings.newsNotifications')}
             value={settings.notifications.news}
-            onToggle={(v) => dispatch(updateNotifications({ news: v }))}
+            onToggle={(v) => {
+              const nextSettings = {
+                ...settings,
+                notifications: { ...settings.notifications, news: v },
+              };
+              dispatch(updateNotifications({ news: v }));
+              dispatch(saveProfile(nextSettings));
+            }}
           />
           <View style={styles.rowDivider} />
           <SettingsNavRow
@@ -344,7 +373,7 @@ export default function SettingsScreen(): React.JSX.Element {
         title={t('settings.currencyDisplay')}
         options={CURRENCY_OPTIONS}
         selected={settings.currencyDisplay}
-        onSelect={(v) => dispatch(updateSettings({ currencyDisplay: v }))}
+        onSelect={(v) => commitSettings({ ...settings, currencyDisplay: v })}
         onClose={() => setShowCurrencyPicker(false)}
         cancelLabel={t('settings.cancel')}
       />
@@ -354,7 +383,7 @@ export default function SettingsScreen(): React.JSX.Element {
         options={LANGUAGE_OPTIONS}
         selected={language}
         onSelect={(v) => {
-          dispatch(updateSettings({ language: v }));
+          commitSettings({ ...settings, language: v });
           void setLanguage(v);
         }}
         onClose={() => setShowLanguagePicker(false)}
