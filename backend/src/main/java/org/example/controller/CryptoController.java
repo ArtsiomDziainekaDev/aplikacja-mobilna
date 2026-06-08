@@ -96,7 +96,7 @@ public class CryptoController {
         }
         
         logger.info("Returning {} cryptocurrencies", cryptos.size());
-        return ResponseEntity.ok(cryptos);
+        return ResponseEntity.ok().header("X-Data-Source", "live").body(cryptos);
     }
 
     @GetMapping("/{symbol}/price")
@@ -181,7 +181,9 @@ public class CryptoController {
                 0.0
             ));
         }
-        return ResponseEntity.ok(cryptos);
+        // Mark the payload as fallback so clients can avoid presenting static
+        // prices as live market data.
+        return ResponseEntity.ok().header("X-Data-Source", "fallback").body(cryptos);
     }
     
     private double getDefaultPrice(String symbol) {

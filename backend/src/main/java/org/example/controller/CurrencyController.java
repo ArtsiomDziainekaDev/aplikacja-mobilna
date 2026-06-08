@@ -90,10 +90,11 @@ public class CurrencyController {
         }
         
         logger.info("Zwracanie {} walut", currencies.size());
-        return ResponseEntity.ok(currencies);
+        return ResponseEntity.ok().header("X-Data-Source", "live").body(currencies);
     }
     
     private ResponseEntity<List<CurrencyResponse>> getStaticCurrencies() {
+        logger.warn("Używanie statycznych kursów walut jako rezerwy");
         List<CurrencyResponse> currencies = new ArrayList<>();
         for (CurrencyInfo currencyInfo : SUPPORTED_CURRENCIES) {
             currencies.add(new CurrencyResponse(
@@ -104,7 +105,9 @@ public class CurrencyController {
                 currencyInfo.getBaseCode()
             ));
         }
-        return ResponseEntity.ok(currencies);
+        // Mark the payload as fallback so clients can avoid presenting static
+        // rates as live exchange rates.
+        return ResponseEntity.ok().header("X-Data-Source", "fallback").body(currencies);
     }
     
     private double getDefaultRate(String currencyCode) {
@@ -126,7 +129,7 @@ public class CurrencyController {
         
         try {
             double rate = currencyRateService.getExternalRate(base, target, percent);
-            return ResponseEntity.ok(rate);
+            return ResponseEntity.ok().header("X-Data-Source", "live").body(rate);
         } catch (Exception e) {
             double fallbackRate = currencyRateService.getFallbackRate(base, target, percent);
             logger.warn(
@@ -135,7 +138,7 @@ public class CurrencyController {
                 target,
                 e.getMessage()
             );
-            return ResponseEntity.ok(fallbackRate);
+            return ResponseEntity.ok().header("X-Data-Source", "fallback").body(fallbackRate);
         }
     }
 
