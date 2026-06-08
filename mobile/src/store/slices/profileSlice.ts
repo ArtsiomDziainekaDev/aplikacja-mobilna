@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ProfileSettings } from '../../types';
 
 const STORAGE_KEY = '@crypto_profile_settings';
+const CURRENCY_CODES = ['USD', 'EUR', 'PLN', 'GBP'] as const;
+const APP_LANGUAGES = ['en', 'pl', 'ru'] as const;
 
 const defaultSettings: ProfileSettings = {
   displayName: '',
@@ -18,7 +20,6 @@ const defaultSettings: ProfileSettings = {
     showPortfolio: true,
     showActivity: true,
   },
-  biometricLogin: false,
 };
 
 interface ProfileState {
@@ -31,26 +32,75 @@ const initialState: ProfileState = {
   loaded: false,
 };
 
-/** Загружает настройки из AsyncStorage при старте. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isCurrencyDisplayCode(value: unknown): value is ProfileSettings['currencyDisplay'] {
+  return typeof value === 'string' && CURRENCY_CODES.includes(value as ProfileSettings['currencyDisplay']);
+}
+
+function isAppLanguage(value: unknown): value is ProfileSettings['language'] {
+  return typeof value === 'string' && APP_LANGUAGES.includes(value as ProfileSettings['language']);
+}
+
+function normalizeProfileSettings(value: unknown): ProfileSettings {
+  if (!isRecord(value)) return defaultSettings;
+
+  const notifications = isRecord(value.notifications) ? value.notifications : {};
+  const privacy = isRecord(value.privacy) ? value.privacy : {};
+  const currencyDisplay = isCurrencyDisplayCode(value.currencyDisplay)
+    ? value.currencyDisplay
+    : defaultSettings.currencyDisplay;
+  const language = isAppLanguage(value.language)
+    ? value.language
+    : defaultSettings.language;
+
+  return {
+    displayName: typeof value.displayName === 'string' ? value.displayName : defaultSettings.displayName,
+    avatarUri: typeof value.avatarUri === 'string' ? value.avatarUri : null,
+    notifications: {
+      priceAlerts: typeof notifications.priceAlerts === 'boolean'
+        ? notifications.priceAlerts
+        : defaultSettings.notifications.priceAlerts,
+      orderUpdates: typeof notifications.orderUpdates === 'boolean'
+        ? notifications.orderUpdates
+        : defaultSettings.notifications.orderUpdates,
+      news: typeof notifications.news === 'boolean'
+        ? notifications.news
+        : defaultSettings.notifications.news,
+    },
+    currencyDisplay,
+    language,
+    privacy: {
+      showPortfolio: typeof privacy.showPortfolio === 'boolean'
+        ? privacy.showPortfolio
+        : defaultSettings.privacy.showPortfolio,
+      showActivity: typeof privacy.showActivity === 'boolean'
+        ? privacy.showActivity
+        : defaultSettings.privacy.showActivity,
+    },
+  };
+}
+
 export const loadProfile = createAsyncThunk('profile/load', async () => {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<ProfileSettings>;
-      return { ...defaultSettings, ...parsed };
+      return normalizeProfileSettings(JSON.parse(raw));
     }
   } catch {
-    /* Если не удалось прочитать — возвращаем defaults. */
+    /* Profile settings are local-only; fall back to defaults if storage is invalid. */
   }
   return defaultSettings;
 });
 
-/** Сохраняет настройки в AsyncStorage. */
 export const saveProfile = createAsyncThunk(
   'profile/save',
   async (settings: ProfileSettings) => {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    return settings;
+    const normalized = normalizeProfileSettings(settings);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
   },
 );
 
@@ -58,11 +108,9 @@ const profileSlice = createSlice({
   name: 'profile',
   initialState,
   reducers: {
-    /** Обновить одно или несколько полей настроек (shallow merge). */
     updateSettings(state, action: PayloadAction<Partial<ProfileSettings>>) {
-      state.settings = { ...state.settings, ...action.payload };
+      state.settings = normalizeProfileSettings({ ...state.settings, ...action.payload });
     },
-    /** Обновить вложенные поля notifications. */
     updateNotifications(
       state,
       action: PayloadAction<Partial<ProfileSettings['notifications']>>,
@@ -72,7 +120,6 @@ const profileSlice = createSlice({
         ...action.payload,
       };
     },
-    /** Обновить вложенные поля privacy. */
     updatePrivacy(
       state,
       action: PayloadAction<Partial<ProfileSettings['privacy']>>,

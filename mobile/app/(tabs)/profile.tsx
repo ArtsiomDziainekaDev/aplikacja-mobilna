@@ -8,19 +8,21 @@ import {
   ScrollView,
   Animated,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../src/hooks/useRedux';
 import { logout } from '../../src/store/slices/authSlice';
 import { fetchMyOrders } from '../../src/store/slices/ordersSlice';
+import { loadProfile } from '../../src/store/slices/profileSlice';
 import type { OrderDTO, OrderStatus } from '../../src/types';
 import FadeInScreen from '../../src/components/FadeInScreen';
 import haptics from '../../src/utils/haptics';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 import { getCryptoMeta } from '../../src/services/cryptoService';
-import { Language, TranslationKey, languages, useI18n } from '../../src/i18n';
+import { isTranslationKey, Language, TranslationKey, useI18n } from '../../src/i18n';
 
 interface Holding {
   symbol: string;
@@ -29,10 +31,11 @@ interface Holding {
   value: number;
 }
 
-const LANGUAGE_LABELS: Record<Language, string> = {
-  en: 'EN',
-  pl: 'PL',
-  ru: 'RU',
+const SETTINGS_ROUTE = '/settings' as Href;
+const LOCALE_BY_LANGUAGE: Record<Language, string> = {
+  en: 'en-US',
+  pl: 'pl-PL',
+  ru: 'ru-RU',
 };
 
 function statusStyle(s: OrderStatus): { bg: string; color: string } {
@@ -62,12 +65,6 @@ function statusLabel(s: OrderStatus, t: (key: TranslationKey) => string): string
   }
 }
 
-/**
- * Składamy portfel z faktycznie zrealizowanych zamówień. Backend nie zwraca
- * pola side/type (buy/sell), więc traktujemy każde COMPLETED zamówienie jako
- * zakup (najczęstszy flow w tej aplikacji). Jeżeli model OrderDTO dostanie
- * `side`, wystarczy tu zmienić znak `amount`.
- */
 function buildHoldings(orders: OrderDTO[]): Holding[] {
   const map = new Map<string, Holding>();
   for (const o of orders) {
@@ -89,10 +86,20 @@ function buildHoldings(orders: OrderDTO[]): Holding[] {
   return Array.from(map.values()).sort((a, b) => b.value - a.value);
 }
 
-function OrderCard({ item, index, t }: { item: OrderDTO; index: number; t: (key: TranslationKey) => string }): React.JSX.Element {
+function OrderCard({
+  item,
+  index,
+  language,
+  t,
+}: {
+  item: OrderDTO;
+  index: number;
+  language: Language;
+  t: (key: TranslationKey) => string;
+}): React.JSX.Element {
   const { bg, color } = statusStyle(item.status);
   const date = item.createdAt
-    ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? new Date(item.createdAt).toLocaleDateString(LOCALE_BY_LANGUAGE[language], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
 
   const opacity = useRef(new Animated.Value(0)).current;
@@ -145,9 +152,10 @@ function OrderCard({ item, index, t }: { item: OrderDTO; index: number; t: (key:
 export default function ProfileScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
-  const { language, setLanguage, t } = useI18n();
+  const { language, t } = useI18n();
   const { user } = useAppSelector((s) => s.auth);
   const { myOrders, loading, error, fromCache } = useAppSelector((s) => s.orders);
+  const { settings, loaded: profileLoaded } = useAppSelector((s) => s.profile);
 
   const [activeTab, setActiveTab] = useState<'portfolio' | 'orders'>('portfolio');
 
@@ -165,13 +173,13 @@ export default function ProfileScreen(): React.JSX.Element {
     dispatch(fetchMyOrders());
   }, [dispatch]);
 
-  /**
-   * Pobieramy zamówienia od razu — portfolio jest liczone z myOrders,
-   * więc to pojedyncze źródło prawdy dla obu zakładek.
-   */
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  useEffect(() => {
+    if (!profileLoaded) dispatch(loadProfile());
+  }, [dispatch, profileLoaded]);
 
   const holdings = useMemo(() => buildHoldings(myOrders), [myOrders]);
   const recentOrders = useMemo(
@@ -188,6 +196,15 @@ export default function ProfileScreen(): React.JSX.Element {
     () => myOrders.filter((o) => o.status === 'COMPLETED').length,
     [myOrders]
   );
+  const displayName = settings.displayName.trim() || user?.email?.split('@')[0] || t('profile.guest');
+  const avatarLetter = (displayName || user?.email || '?').charAt(0).toUpperCase();
+  const showPortfolio = settings.privacy.showPortfolio;
+  const showActivity = settings.privacy.showActivity;
+  const orderErrorText = error && isTranslationKey(error) ? t(error) : error;
+
+  useEffect(() => {
+    if (!showActivity && activeTab === 'orders') setActiveTab('portfolio');
+  }, [activeTab, showActivity]);
 
   const handleLogout = async (): Promise<void> => {
     await haptics.warning();
@@ -202,7 +219,6 @@ export default function ProfileScreen(): React.JSX.Element {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerIcon}>
             <MaterialCommunityIcons name="account" size={20} color={colors.textSecondary} />
@@ -213,7 +229,6 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
         </View>
 
-        {/* Profile Card (Full width now, removed maxWidth) */}
         <Animated.View
           style={[
             styles.profileCard,
@@ -222,27 +237,26 @@ export default function ProfileScreen(): React.JSX.Element {
         >
           <View style={styles.avatarWrap}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>
-                {user?.email?.charAt(0).toUpperCase() ?? '?'}
-              </Text>
+              {settings.avatarUri ? (
+                <Image source={{ uri: settings.avatarUri }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+              )}
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {user?.email?.split('@')[0] ?? t('profile.guest')}
-              </Text>
+              <Text style={styles.userName}>{displayName}</Text>
               <Text style={styles.email}>{user?.email ?? t('profile.notSignedIn')}</Text>
             </View>
-            <TouchableOpacity style={styles.settingsBtn} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => router.push(SETTINGS_ROUTE)}
+              activeOpacity={0.7}
+            >
               <MaterialCommunityIcons name="cog" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
-          {/* Badges */}
           <View style={styles.badges}>
-            <View style={styles.badgeVerified}>
-              <MaterialCommunityIcons name="check-circle" size={12} color={colors.success} />
-              <Text style={styles.badgeVerifiedText}>{t('profile.verified')}</Text>
-            </View>
             <View style={styles.roleBadge}>
               <Text style={styles.roleText}>
                 {user?.role ? user.role.replace('ROLE_', '') : t('profile.guest')}
@@ -250,27 +264,6 @@ export default function ProfileScreen(): React.JSX.Element {
             </View>
           </View>
 
-          <View style={styles.languageSection}>
-            <Text style={styles.languageTitle}>{t('profile.language')}</Text>
-            <View style={styles.languageOptions}>
-              {languages.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[styles.languageButton, language === item && styles.languageButtonActive]}
-                  onPress={() => {
-                    void setLanguage(item);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.languageButtonText, language === item && styles.languageButtonTextActive]}>
-                    {LANGUAGE_LABELS[item]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Stats */}
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <View style={styles.statLabel}>
@@ -278,7 +271,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.statLabelText}>{t('profile.totalPortfolio')}</Text>
               </View>
               <Text style={styles.statValue}>
-                ${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                {showPortfolio ? `$${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '••••'}
               </Text>
             </View>
             <View style={[styles.stat, styles.statBorder]}>
@@ -298,7 +291,6 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
         </Animated.View>
 
-        {/* Custom Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'portfolio' && styles.tabBtnActive]}
@@ -313,6 +305,7 @@ export default function ProfileScreen(): React.JSX.Element {
             style={[styles.tabBtn, activeTab === 'orders' && styles.tabBtnActive]}
             onPress={() => setActiveTab('orders')}
             activeOpacity={0.8}
+            disabled={!showActivity}
           >
             <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
               {t('profile.orderHistory')}
@@ -320,11 +313,16 @@ export default function ProfileScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
-        {/* Tab Content */}
         {activeTab === 'portfolio' ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('profile.holdings')}</Text>
-            {loading && myOrders.length === 0 ? (
+            {!showPortfolio ? (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="eye-off-outline" size={48} color={colors.textMuted} />
+                <Text style={styles.emptyText}>{t('profile.portfolioHidden')}</Text>
+                <Text style={styles.emptySubtext}>{t('profile.portfolioHiddenHint')}</Text>
+              </View>
+            ) : loading && myOrders.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
@@ -357,8 +355,16 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>{t('profile.recentActivity')}</Text>
-            {recentOrders.length === 0 ? (
+            {showActivity && (
+              <Text style={[styles.sectionTitle, { marginTop: spacing.md }]}>{t('profile.recentActivity')}</Text>
+            )}
+            {!showActivity ? (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="eye-off-outline" size={40} color={colors.textMuted} />
+                <Text style={styles.emptyText}>{t('profile.activityHidden')}</Text>
+                <Text style={styles.emptySubtext}>{t('profile.activityHiddenHint')}</Text>
+              </View>
+            ) : recentOrders.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="history" size={40} color={colors.textMuted} />
                 <Text style={styles.emptyText}>{t('profile.noRecentActivity')}</Text>
@@ -369,7 +375,7 @@ export default function ProfileScreen(): React.JSX.Element {
                   const meta = getCryptoMeta(order.currencyCode);
                   const statusInfo = statusStyle(order.status);
                   const dateStr = order.createdAt
-                    ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    ? new Date(order.createdAt).toLocaleDateString(LOCALE_BY_LANGUAGE[language], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                     : '—';
                   return (
                     <View
@@ -400,7 +406,7 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             )}
           </View>
-        ) : (
+        ) : showActivity ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('profile.orderHistory')}</Text>
             {fromCache && (
@@ -414,10 +420,10 @@ export default function ProfileScreen(): React.JSX.Element {
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
-            ) : error && myOrders.length === 0 ? (
+            ) : orderErrorText && myOrders.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.error} />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{orderErrorText}</Text>
               </View>
             ) : myOrders.length === 0 ? (
               <View style={styles.emptyWrap}>
@@ -426,13 +432,18 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             ) : (
               myOrders.map((order, index) => (
-                <OrderCard key={order.id} item={order} index={index} t={t} />
+                <OrderCard key={order.id} item={order} index={index} language={language} t={t} />
               ))
             )}
           </View>
+        ) : (
+          <View style={styles.emptyWrap}>
+            <MaterialCommunityIcons name="eye-off-outline" size={48} color={colors.textMuted} />
+            <Text style={styles.emptyText}>{t('profile.activityHidden')}</Text>
+            <Text style={styles.emptySubtext}>{t('profile.activityHiddenHint')}</Text>
+          </View>
         )}
 
-        {/* Actions */}
         {user?.role === 'ROLE_ADMIN' && (
           <TouchableOpacity
             style={styles.adminButton}
@@ -483,6 +494,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(233, 30, 140, 0.5)',
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
   avatarLetter: { fontSize: 24, fontWeight: '700', color: '#fff' },
   userInfo: { flex: 1 },
   userName: { fontSize: 18, fontWeight: '700', color: colors.text },
@@ -493,42 +508,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   badges: { flexDirection: 'row', gap: 8, marginBottom: spacing.md },
-  badgeVerified: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.successLight, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: 'rgba(0,230,118,0.2)',
-  },
-  badgeVerifiedText: { fontSize: 11, color: colors.success, fontWeight: '600' },
   roleBadge: {
     backgroundColor: colors.surfaceLight, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 4,
     borderWidth: 1, borderColor: colors.border,
   },
   roleText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
-
-  languageSection: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  languageTitle: { fontSize: 12, color: colors.textMuted, marginBottom: 8, fontWeight: '600' },
-  languageOptions: { flexDirection: 'row', gap: 8 },
-  languageButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  languageButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  languageButtonText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  languageButtonTextActive: { color: '#fff' },
 
   statsRow: {
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md,

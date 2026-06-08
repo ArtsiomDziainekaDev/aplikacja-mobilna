@@ -115,6 +115,7 @@ const CryptoList: React.FC = () => {
   const [miniChartsData, setMiniChartsData] = useState<Record<string, ChartDataPoint[]>>({});
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   // Fetch all prices
   useEffect(() => {
@@ -136,15 +137,11 @@ const CryptoList: React.FC = () => {
           };
         }).filter(c => c.price > 0); // Remove coins that Binance didn't return
 
+        setPriceError(null);
         setCryptos(cryptoList);
-      } catch (err) {
-        // Fallback
-        setCryptos(CRYPTO_CONFIG.slice(0, 5).map((c, i) => ({
-          ...c,
-          price: [62500, 4032, 580, 148, 0.52][i],
-          change24h: [2.46, 1.82, -0.8, -0.5, 3.1][i],
-          volume24h: [28e9, 15e9, 1.8e9, 2.5e9, 1.2e9][i],
-        })));
+      } catch {
+        setPriceError('Could not load live prices. Try again later.');
+        setCryptos([]);
       } finally {
         setLoading(false);
       }
@@ -213,6 +210,14 @@ const CryptoList: React.FC = () => {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <CircularProgress sx={{ color: '#e91e8c' }} />
+      </Box>
+    );
+  }
+
+  if (priceError) {
+    return (
+      <Box sx={{ py: 6, textAlign: 'center' }}>
+        <Alert severity="error" sx={{ display: 'inline-flex' }}>{priceError}</Alert>
       </Box>
     );
   }

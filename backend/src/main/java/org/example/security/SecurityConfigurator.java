@@ -7,6 +7,7 @@ import org.example.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.lang.NonNull;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -32,9 +33,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfigurator {
 
+    @NonNull
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
     @Lazy
+    @NonNull
     private final UserService userService;
 
     @Bean
@@ -51,7 +54,6 @@ public class SecurityConfigurator {
                 .requestMatchers(HttpMethod.GET, "/api/news", "/api/news/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/news/refresh").authenticated()
                 .requestMatchers("/api/crypto", "/api/crypto/**").authenticated()
-                .requestMatchers("/api/orders/*/pay").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

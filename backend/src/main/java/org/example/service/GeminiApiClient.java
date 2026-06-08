@@ -2,15 +2,20 @@ package org.example.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class GeminiApiClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(GeminiApiClient.class);
 
     @Value("${gemini.api.key}")
     private String geminiApiKey;
@@ -30,7 +35,7 @@ public class GeminiApiClient {
                     title, description
             );
 
-            String requestBody = gson.toJson(new GeminiRequest(new Content(prompt)));
+            String requestBody = Objects.requireNonNull(gson.toJson(new GeminiRequest(new Content(prompt))));
 
             String response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
@@ -45,7 +50,7 @@ public class GeminiApiClient {
 
             return parseGeminiResponse(response);
         } catch (Exception e) {
-            System.err.println("Error calling Gemini API: " + e.getMessage());
+            logger.error("Error calling Gemini API", e);
             return description != null ? description.substring(0, Math.min(200, description.length())) : "No summary available";
         }
     }
@@ -72,7 +77,7 @@ public class GeminiApiClient {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Error parsing Gemini response: " + e.getMessage());
+            logger.error("Error parsing Gemini response", e);
         }
         return "Summary unavailable";
     }

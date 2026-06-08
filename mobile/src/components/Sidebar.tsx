@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Animated,
   Platform,
   PanResponder,
+  Alert,
+  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -14,11 +16,16 @@ import { usePathname, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
+import { useConnectivity } from '../hooks/useConnectivity';
 import { logout } from '../store/slices/authSlice';
+import { loadProfile } from '../store/slices/profileSlice';
 import { colors } from '../theme/colors';
 import { TranslationKey, useI18n } from '../i18n';
 
 export const SIDEBAR_WIDTH = 240;
+
+const SETTINGS_ROUTE = '/settings' as Href;
+const PROFILE_ROUTE = '/(tabs)/profile' as Href;
 
 interface NavItem {
   labelKey: TranslationKey;
@@ -30,7 +37,11 @@ const mainNavItems: NavItem[] = [
   { labelKey: 'nav.home', icon: 'home', path: '/(tabs)' },
   { labelKey: 'nav.crypto', icon: 'chart-line', path: '/(tabs)/crypto' },
   { labelKey: 'nav.news', icon: 'newspaper-variant-outline', path: '/(tabs)/news' },
-  { labelKey: 'nav.profile', icon: 'account', path: '/(tabs)/profile' },
+];
+
+const accountNavItems: NavItem[] = [
+  { labelKey: 'nav.profile', icon: 'account', path: PROFILE_ROUTE },
+  { labelKey: 'nav.settings', icon: 'cog', path: SETTINGS_ROUTE },
 ];
 
 const ADMIN_NAV_ITEM: NavItem = { labelKey: 'common.admin', icon: 'shield-account', path: '/admin' };
@@ -46,18 +57,19 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
+  const { settings, loaded: profileLoaded } = useAppSelector((s) => s.profile);
   const isAdmin = user?.role === 'ROLE_ADMIN';
+  const isConnected = useConnectivity();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
 
   const slideAnim = useRef(new Animated.Value(isDesktop ? 0 : -SIDEBAR_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
-  /**
-   * Trzymamy widoczność jawnie zamiast czytać Animated.Value._value (prywatne API).
-   * Dzięki temu w innej wersji RN warunek dalej działa, a po zakończeniu animacji
-   * zamknięcia overlay przestaje być w drzewie komponentów.
-   */
   const [isVisible, setIsVisible] = useState(isOpen);
+
+  useEffect(() => {
+    if (!profileLoaded) dispatch(loadProfile());
+  }, [dispatch, profileLoaded]);
 
   useEffect(() => {
     if (isDesktop) {
@@ -103,12 +115,12 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt, gestureState) => {
+      onPanResponderMove: (_evt, gestureState) => {
         if (gestureState.dx < 0 && isOpen) {
           slideAnim.setValue(Math.max(-SIDEBAR_WIDTH, gestureState.dx));
         }
       },
-      onPanResponderRelease: (evt, gestureState) => {
+      onPanResponderRelease: (_evt, gestureState) => {
         if (gestureState.dx < -50 || gestureState.vx < -0.5) {
           onClose();
         } else if (isOpen) {
@@ -121,55 +133,90 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
     })
   ).current;
 
-  const handleNavClick = (path: Href) => {
+  const handleNavClick = useCallback((path: Href) => {
     router.push(path);
     if (!isDesktop) onClose();
-  };
+  }, [router, isDesktop, onClose]);
 
-  const handleLogout = () => {
-    dispatch(logout());
-    router.replace('/(auth)/login');
-  };
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      t('nav.logoutConfirmTitle'),
+      t('nav.logoutConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('nav.logout'),
+          style: 'destructive',
+          onPress: () => {
+            dispatch(logout());
+            router.replace('/(auth)/login');
+            if (!isDesktop) onClose();
+          },
+        },
+      ],
+    );
+  }, [dispatch, router, isDesktop, onClose, t]);
 
-  const isActive = (path: Href): boolean => {
+  const isActive = useCallback((path: Href): boolean => {
     const target = typeof path === 'string' ? path : (path as { pathname?: string }).pathname ?? '';
-    if (target === '/' || target === '/(tabs)') return pathname === '/' || pathname === '/index' || pathname === '/(tabs)';
+
+    if (target === '/settings') {
+      return pathname === '/settings' || pathname === '/edit-profile';
+    }
+    if (target === '/' || target === '/(tabs)') {
+      return pathname === '/' || pathname === '/index' || pathname === '/(tabs)';
+    }
+    if (target === '/(tabs)/profile') {
+      return pathname === '/profile' || pathname === '/(tabs)/profile';
+    }
+
     const normalized = target.replace('/(tabs)', '');
     if (!normalized) return false;
     return pathname.startsWith(normalized) || pathname.startsWith(target);
-  };
+  }, [pathname]);
+
+  const displayName = useMemo(
+    () => settings.displayName.trim() || user?.email?.split('@')[0] || t('profile.guest'),
+    [settings.displayName, user?.email, t],
+  );
+  const avatarLetter = (displayName || user?.email || '?').charAt(0).toUpperCase();
+  const email = user?.email ?? t('profile.notSignedIn');
+
+  const renderNavItems = (items: NavItem[]) =>
+    items.map((item) => {
+      const active = isActive(item.path);
+      return (
+        <TouchableOpacity
+          key={item.labelKey}
+          style={[styles.navItem, active && styles.navItemActive]}
+          onPress={() => handleNavClick(item.path)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name={item.icon}
+            size={20}
+            color={active ? '#fff' : 'rgba(255,255,255,0.6)'}
+          />
+          <Text style={[styles.navText, active && styles.navTextActive]}>{t(item.labelKey)}</Text>
+        </TouchableOpacity>
+      );
+    });
 
   const SidebarContent = (
     <View style={[styles.content, { paddingTop: insets.top }]}>
-      {/* Logo */}
       <View style={[styles.logoSection, { marginTop: Platform.OS === 'ios' ? 12 : 24 }]}>
         <View>
-          <Text style={styles.logoText}>Crypto App</Text>
+          <Text style={styles.logoText}>{t('common.appName')}</Text>
           <Text style={styles.logoSubtext}>{t('nav.subtitle')}</Text>
         </View>
       </View>
 
-      {/* Navigation */}
-      <View style={styles.navSection}>
-        {mainNavItems.map((item) => {
-          const active = isActive(item.path);
-          return (
-            <TouchableOpacity
-              key={item.labelKey}
-              style={[styles.navItem, active && styles.navItemActive]}
-              onPress={() => handleNavClick(item.path)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons
-                name={item.icon}
-                size={20}
-                color={active ? '#fff' : 'rgba(255,255,255,0.6)'}
-              />
-              <Text style={[styles.navText, active && styles.navTextActive]}>{t(item.labelKey)}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <Text style={styles.sectionLabel}>{t('nav.main').toUpperCase()}</Text>
+      <View style={styles.navSection}>{renderNavItems(mainNavItems)}</View>
 
+      <Text style={styles.sectionLabel}>{t('nav.account').toUpperCase()}</Text>
+      <View style={styles.navSection}>
+        {renderNavItems(accountNavItems)}
         {isAdmin && (
           <>
             <View style={styles.divider} />
@@ -193,19 +240,51 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
 
       <View style={{ flex: 1 }} />
 
-      {/* Bottom Section */}
       <View style={styles.bottomSection}>
+        <View style={styles.userCard}>
+          <TouchableOpacity
+            style={styles.userCardMain}
+            onPress={() => handleNavClick(PROFILE_ROUTE)}
+            activeOpacity={0.8}
+          >
+            {settings.avatarUri ? (
+              <Image source={{ uri: settings.avatarUri }} style={styles.userAvatarImage} />
+            ) : (
+              <View style={styles.userAvatar}>
+                <Text style={styles.userAvatarLetter}>{avatarLetter}</Text>
+              </View>
+            )}
+            <View style={styles.userInfo}>
+              <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.userEmail} numberOfLines={1}>{email}</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.userSettingsBtn}
+            onPress={() => handleNavClick(SETTINGS_ROUTE)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="cog" size={18} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <MaterialCommunityIcons name="logout" size={20} color="rgba(255,255,255,0.5)" />
           <Text style={styles.logoutText}>{t('nav.logout')}</Text>
         </TouchableOpacity>
 
-        {/* Market Status */}
-        <View style={styles.marketStatus}>
-          <Text style={styles.marketStatusTitle}>{t('nav.marketStatus')}</Text>
-          <View style={styles.marketStatusRow}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.marketStatusText}>{t('nav.liveTrading')}</Text>
+        <View style={[styles.connectionStatus, !isConnected && styles.connectionStatusOffline]}>
+          <Text style={styles.connectionStatusTitle}>{t('nav.connectionStatus')}</Text>
+          <View style={styles.connectionStatusRow}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isConnected ? colors.success : colors.error },
+              ]}
+            />
+            <Text style={styles.connectionStatusText}>
+              {isConnected ? t('nav.online') : t('nav.offline')}
+            </Text>
           </View>
         </View>
       </View>
@@ -289,17 +368,8 @@ const styles = StyleSheet.create({
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
     paddingHorizontal: 12,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
   },
   logoText: {
     fontSize: 18,
@@ -311,8 +381,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     marginTop: 2,
   },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.1,
+    marginBottom: 6,
+    marginTop: 4,
+    paddingHorizontal: 16,
+  },
   navSection: {
-    flex: 1,
+    marginBottom: 8,
   },
   navItem: {
     flexDirection: 'row',
@@ -344,6 +423,67 @@ const styles = StyleSheet.create({
   bottomSection: {
     paddingHorizontal: 4,
   },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  userCardMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 4,
+    gap: 10,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(233, 30, 140, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(233, 30, 140, 0.35)',
+  },
+  userAvatarLetter: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  userInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  userEmail: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  userSettingsBtn: {
+    width: 40,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255,255,255,0.06)',
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,35 +497,34 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     marginLeft: 12,
   },
-  marketStatus: {
-    backgroundColor: 'rgba(233, 30, 140, 0.15)',
+  connectionStatus: {
+    backgroundColor: 'rgba(0, 230, 118, 0.1)',
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(233, 30, 140, 0.15)',
+    borderColor: 'rgba(0, 230, 118, 0.15)',
   },
-  marketStatusTitle: {
+  connectionStatusOffline: {
+    backgroundColor: 'rgba(255, 82, 82, 0.1)',
+    borderColor: 'rgba(255, 82, 82, 0.2)',
+  },
+  connectionStatusTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
-  marketStatusRow: {
+  connectionStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
   },
-  pulseDot: {
+  statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00e676',
     marginRight: 6,
-    shadowColor: '#00e676',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
   },
-  marketStatusText: {
+  connectionStatusText: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.55)',
   },

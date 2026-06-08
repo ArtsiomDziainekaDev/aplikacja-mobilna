@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   Animated,
-  Alert,
   Modal,
   Pressable,
 } from 'react-native';
@@ -28,62 +27,7 @@ import {
   updatePrivacy,
 } from '../src/store/slices/profileSlice';
 import type { CurrencyDisplayCode, AppLanguage } from '../src/types';
-
-/* ────────────────────── Change Password Modal ────────────────────── */
-
-function ChangePasswordModal({
-  visible,
-  onClose,
-}: {
-  visible: boolean;
-  onClose: () => void;
-}): React.JSX.Element {
-  const modalOpacity = useRef(new Animated.Value(0)).current;
-  const modalScale = useRef(new Animated.Value(0.96)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(modalOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.spring(modalScale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }),
-      ]).start();
-    } else {
-      modalOpacity.setValue(0);
-      modalScale.setValue(0.96);
-    }
-  }, [visible, modalOpacity, modalScale]);
-
-  const handleSave = () => {
-    void haptics.success();
-    Alert.alert('Success', 'Password change is not connected to the backend yet — coming soon!');
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Animated.View style={[styles.modalContent, { opacity: modalOpacity, transform: [{ scale: modalScale }] }]}>
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Change Password</Text>
-            <Text style={styles.modalSubtitle}>
-              This feature will be available once the backend API endpoint is ready.
-            </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={onClose} activeOpacity={0.8}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSave} activeOpacity={0.8}>
-                <Text style={styles.modalSaveText}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
-  );
-}
-
-/* ────────────────────── Picker Modal ────────────────────── */
+import { useI18n } from '../src/i18n';
 
 interface PickerOption<T extends string> {
   label: string;
@@ -97,6 +41,7 @@ function PickerModal<T extends string>({
   selected,
   onSelect,
   onClose,
+  cancelLabel,
 }: {
   visible: boolean;
   title: string;
@@ -104,6 +49,7 @@ function PickerModal<T extends string>({
   selected: T;
   onSelect: (value: T) => void;
   onClose: () => void;
+  cancelLabel: string;
 }): React.JSX.Element {
   const modalOpacity = useRef(new Animated.Value(0)).current;
   const modalScale = useRef(new Animated.Value(0.96)).current;
@@ -151,7 +97,7 @@ function PickerModal<T extends string>({
               })}
             </View>
             <TouchableOpacity style={styles.modalCancelBtn} onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{cancelLabel}</Text>
             </TouchableOpacity>
           </Pressable>
         </Animated.View>
@@ -159,8 +105,6 @@ function PickerModal<T extends string>({
     </Modal>
   );
 }
-
-/* ────────────────────── Settings Row Components ────────────────────── */
 
 function SettingsNavRow({
   icon,
@@ -217,8 +161,6 @@ function SettingsToggleRow({
   );
 }
 
-/* ────────────────────── Currency & Language options ────────────────────── */
-
 const CURRENCY_OPTIONS: PickerOption<CurrencyDisplayCode>[] = [
   { label: '$ US Dollar (USD)', value: 'USD' },
   { label: '€ Euro (EUR)', value: 'EUR' },
@@ -229,6 +171,7 @@ const CURRENCY_OPTIONS: PickerOption<CurrencyDisplayCode>[] = [
 const LANGUAGE_OPTIONS: PickerOption<AppLanguage>[] = [
   { label: '🇬🇧 English', value: 'en' },
   { label: '🇵🇱 Polski', value: 'pl' },
+  { label: '🇷🇺 Русский', value: 'ru' },
 ];
 
 const EDIT_PROFILE_ROUTE = '/edit-profile' as Href;
@@ -241,24 +184,20 @@ function languageLabel(code: AppLanguage): string {
   return LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code;
 }
 
-/* ────────────────────── Main Settings Screen ────────────────────── */
-
 export default function SettingsScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const { language, setLanguage, t } = useI18n();
   const { settings, loaded } = useAppSelector((s) => s.profile);
   const { privacy } = settings;
 
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
-  /* Load settings on mount */
   useEffect(() => {
     if (!loaded) dispatch(loadProfile());
   }, [dispatch, loaded]);
 
-  /* Persist settings whenever they change */
   const persistSettings = useCallback(() => {
     dispatch(saveProfile(settings));
   }, [dispatch, settings]);
@@ -266,6 +205,12 @@ export default function SettingsScreen(): React.JSX.Element {
   useEffect(() => {
     if (loaded) persistSettings();
   }, [settings, loaded, persistSettings]);
+
+  useEffect(() => {
+    if (loaded && settings.language !== language) {
+      dispatch(updateSettings({ language }));
+    }
+  }, [dispatch, language, loaded, settings.language]);
 
   const handleLogout = useCallback(async () => {
     await haptics.warning();
@@ -278,11 +223,6 @@ export default function SettingsScreen(): React.JSX.Element {
     router.push(EDIT_PROFILE_ROUTE);
   }, []);
 
-  const handleChangePassword = useCallback(() => {
-    void haptics.lightTap();
-    setShowPasswordModal(true);
-  }, []);
-
   const handlePrivacyToggle = useCallback(
     (key: keyof typeof privacy) => {
       dispatch(updatePrivacy({ [key]: !privacy[key] }));
@@ -290,7 +230,6 @@ export default function SettingsScreen(): React.JSX.Element {
     [dispatch, privacy],
   );
 
-  /* Section header animation */
   const headerAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(headerAnim, {
@@ -307,7 +246,6 @@ export default function SettingsScreen(): React.JSX.Element {
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backBtn}
@@ -320,69 +258,61 @@ export default function SettingsScreen(): React.JSX.Element {
             <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
           <View>
-            <Text style={styles.headerTitle}>Settings</Text>
-            <Text style={styles.headerSubtitle}>Manage your account</Text>
+            <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('settings.manageAccount')}</Text>
           </View>
         </View>
 
-        {/* ─── ACCOUNT ─── */}
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
+        <Text style={styles.sectionLabel}>{t('settings.account').toUpperCase()}</Text>
         <View style={styles.sectionCard}>
           <SettingsNavRow
             icon="account-edit"
-            label="Edit Profile"
-            subtitle="Name, photo"
+            label={t('settings.editProfile')}
+            subtitle={t('settings.namePhoto')}
             onPress={handleEditProfile}
-          />
-          <View style={styles.rowDivider} />
-          <SettingsNavRow
-            icon="lock-reset"
-            label="Change Password"
-            onPress={handleChangePassword}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="eye-off"
-            label="Hide Portfolio"
+            label={t('settings.portfolioPrivacy')}
             value={!settings.privacy.showPortfolio}
             onToggle={() => handlePrivacyToggle('showPortfolio')}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="history"
-            label="Hide Activity"
+            label={t('settings.activityPrivacy')}
             value={!settings.privacy.showActivity}
             onToggle={() => handlePrivacyToggle('showActivity')}
           />
         </View>
 
-        {/* ─── PREFERENCES ─── */}
-        <Text style={styles.sectionLabel}>PREFERENCES</Text>
+        <Text style={styles.sectionLabel}>{t('settings.preferences').toUpperCase()}</Text>
         <View style={styles.sectionCard}>
           <SettingsToggleRow
             icon="bell-ring"
-            label="Price Alerts"
+            label={t('settings.priceAlerts')}
             value={settings.notifications.priceAlerts}
             onToggle={(v) => dispatch(updateNotifications({ priceAlerts: v }))}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="cart-check"
-            label="Order Updates"
+            label={t('settings.orderUpdates')}
             value={settings.notifications.orderUpdates}
             onToggle={(v) => dispatch(updateNotifications({ orderUpdates: v }))}
           />
           <View style={styles.rowDivider} />
           <SettingsToggleRow
             icon="newspaper"
-            label="News Notifications"
+            label={t('settings.newsNotifications')}
             value={settings.notifications.news}
             onToggle={(v) => dispatch(updateNotifications({ news: v }))}
           />
           <View style={styles.rowDivider} />
           <SettingsNavRow
             icon="currency-usd"
-            label="Currency Display"
+            label={t('settings.currencyDisplay')}
             subtitle={currencyLabel(settings.currencyDisplay)}
             onPress={() => {
               void haptics.lightTap();
@@ -392,8 +322,8 @@ export default function SettingsScreen(): React.JSX.Element {
           <View style={styles.rowDivider} />
           <SettingsNavRow
             icon="translate"
-            label="Language"
-            subtitle={languageLabel(settings.language)}
+            label={t('settings.language')}
+            subtitle={languageLabel(language)}
             onPress={() => {
               void haptics.lightTap();
               setShowLanguagePicker(true);
@@ -401,58 +331,43 @@ export default function SettingsScreen(): React.JSX.Element {
           />
         </View>
 
-        {/* ─── SECURITY ─── */}
-        <Text style={styles.sectionLabel}>SECURITY</Text>
-        <View style={styles.sectionCard}>
-          <SettingsToggleRow
-            icon="fingerprint"
-            label="Biometric Login"
-            value={settings.biometricLogin}
-            onToggle={(v) => dispatch(updateSettings({ biometricLogin: v }))}
-          />
-        </View>
-
-        {/* ─── LOG OUT ─── */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.85}>
           <MaterialCommunityIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t('settings.logout')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>Crypto Exchange v1.0.0</Text>
+        <Text style={styles.versionText}>{t('settings.version')}</Text>
       </ScrollView>
 
-      {/* Modals */}
-      <ChangePasswordModal
-        visible={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
-      />
       <PickerModal
         visible={showCurrencyPicker}
-        title="Currency Display"
+        title={t('settings.currencyDisplay')}
         options={CURRENCY_OPTIONS}
         selected={settings.currencyDisplay}
         onSelect={(v) => dispatch(updateSettings({ currencyDisplay: v }))}
         onClose={() => setShowCurrencyPicker(false)}
+        cancelLabel={t('settings.cancel')}
       />
       <PickerModal
         visible={showLanguagePicker}
-        title="Language"
+        title={t('settings.language')}
         options={LANGUAGE_OPTIONS}
-        selected={settings.language}
-        onSelect={(v) => dispatch(updateSettings({ language: v }))}
+        selected={language}
+        onSelect={(v) => {
+          dispatch(updateSettings({ language: v }));
+          void setLanguage(v);
+        }}
         onClose={() => setShowLanguagePicker(false)}
+        cancelLabel={t('settings.cancel')}
       />
     </FadeInScreen>
   );
 }
 
-/* ────────────────────── Styles ────────────────────── */
-
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.md, paddingBottom: 60 },
 
-  /* Header */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -470,7 +385,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   headerSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
 
-  /* Section */
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
@@ -489,7 +403,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
-  /* Row */
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -514,7 +427,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
 
-  /* Log Out */
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -532,7 +444,6 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  /* Version */
   versionText: {
     textAlign: 'center',
     color: colors.textMuted,
@@ -540,7 +451,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
 
-  /* Modal shared */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -563,16 +473,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
-  modalSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-    lineHeight: 18,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   modalCancelBtn: {
     flex: 1,
     paddingVertical: 12,
@@ -583,16 +483,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   modalCancelText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
-  modalSaveBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-  modalSaveText: { fontSize: 15, color: '#fff', fontWeight: '700' },
-
-  /* Picker */
   pickerList: { marginBottom: spacing.md },
   pickerItem: {
     flexDirection: 'row',

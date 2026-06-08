@@ -109,7 +109,7 @@ export default function CryptoScreen(): React.JSX.Element {
     try {
       await dispatch(fetchCrypto()).unwrap();
     } catch {
-      /* Refresh control nie powinien sypać tutaj — error trzymamy w sliceu. */
+      /* Errors are stored in the slice; refresh should always finish cleanly. */
     } finally {
       setRefreshing(false);
     }

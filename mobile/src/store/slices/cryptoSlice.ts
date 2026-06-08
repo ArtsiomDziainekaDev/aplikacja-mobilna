@@ -36,7 +36,7 @@ export const fetchCrypto = createAsyncThunk<FetchResult, void, { rejectValue: st
       if (cached.length > 0) {
         return { data: cached, fromCache: true };
       }
-      return rejectWithValue(e instanceof Error ? e.message : 'Błąd pobierania kryptowalut');
+      return rejectWithValue(e instanceof Error ? e.message : 'errors.crypto.fetchFailed');
     }
   }
 );
@@ -64,7 +64,7 @@ const cryptoSlice = createSlice({
       })
       .addCase(fetchCrypto.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? 'Błąd pobierania kryptowalut';
+        state.error = action.payload ?? 'errors.crypto.fetchFailed';
       });
   },
 });

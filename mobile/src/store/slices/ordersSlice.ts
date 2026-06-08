@@ -35,7 +35,7 @@ export const fetchMyOrders = createAsyncThunk<
       if (cached.length > 0) {
         return { data: cached, fromCache: true };
       }
-      return rejectWithValue(e instanceof Error ? e.message : 'Błąd pobierania zamówień');
+      return rejectWithValue(e instanceof Error ? e.message : 'errors.orders.fetchFailed');
     }
   }
 );
@@ -45,7 +45,7 @@ export const createOrder = createAsyncThunk<OrderDTO, CreateOrderRequest, { reje
   async (body, { rejectWithValue }) => {
     if (!body.currencyCode || !Number.isFinite(body.amount) || body.amount <= 0) {
       await haptics.error();
-      return rejectWithValue('Nieprawidłowa kwota zamówienia');
+      return rejectWithValue('errors.orders.invalidAmount');
     }
     try {
       const { data } = await api.post<OrderDTO>('/api/orders', body);
@@ -61,7 +61,7 @@ export const createOrder = createAsyncThunk<OrderDTO, CreateOrderRequest, { reje
           return rejectWithValue((data as { message: string }).message);
         }
       }
-      return rejectWithValue(e instanceof Error ? e.message : 'Błąd tworzenia zamówienia');
+      return rejectWithValue(e instanceof Error ? e.message : 'errors.orders.createFailed');
     }
   }
 );
@@ -88,7 +88,7 @@ const ordersSlice = createSlice({
       })
       .addCase(fetchMyOrders.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || 'Błąd';
+        state.error = (action.payload as string) || 'errors.orders.fetchFailed';
       })
       .addCase(createOrder.pending, (state) => {
         state.createLoading = true;
@@ -101,7 +101,7 @@ const ordersSlice = createSlice({
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.createLoading = false;
-        state.error = (action.payload as string) || 'Błąd';
+        state.error = (action.payload as string) || 'errors.orders.createFailed';
       });
   },
 });

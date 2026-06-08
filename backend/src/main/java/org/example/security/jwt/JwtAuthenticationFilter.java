@@ -16,6 +16,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -69,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.debug("Checking if should not filter - Path: {}, Method: {}", path, method);
         
         // Skip OPTIONS and public auth endpoints (also support /auth/**)
-        return HttpMethod.OPTIONS.matches(method) ||
+        return HttpMethod.OPTIONS.matches(Objects.requireNonNull(method)) ||
                path.equals("/api/auth/signin") || 
                path.equals("/api/auth/signup") ||
                path.startsWith("/auth");

@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.service.CurrencyRateService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,15 +15,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpStatus;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/currencies")
 @RequiredArgsConstructor
 public class CurrencyController {
     private static final Logger logger = LoggerFactory.getLogger(CurrencyController.class);
-    
+
+    private final CurrencyRateService currencyRateService;
+
     @Value("${currencyfreaks.apikey}")
     private String currencyFreaksApiKey;
 
@@ -46,9 +50,9 @@ public class CurrencyController {
             );
             
             RestTemplate restTemplate = new RestTemplate();
-            String response = restTemplate.getForObject(url, String.class);
+            String response = restTemplate.getForObject(Objects.requireNonNull(url), String.class);
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode node = mapper.readTree(response);
+            JsonNode node = mapper.readTree(Objects.requireNonNull(response));
             
             if (!node.has("rates")) {
                 logger.error("Odpowiedź CurrencyFreaks nie zawiera kursów");
@@ -122,7 +126,7 @@ public class CurrencyController {
         logger.info("Pobieranie kursu zewnętrznego: {} do {} z marżą {}%", base, target, percent);
         
         try {
-            double rate = getExternalRateInternal(base, target, percent);
+            double rate = currencyRateService.getExternalRate(base, target, percent);
             return ResponseEntity.ok(rate);
         } catch (Exception e) {
             logger.error("Błąd podczas pobierania kursu zewnętrznego: {}", e.getMessage());
@@ -137,52 +141,6 @@ public class CurrencyController {
             @RequestParam(defaultValue = "0") double percent
     ) {
         return getExternalRate(base, target, percent);
-    }
-
-    private double getExternalRateInternal(String base, String target, double percent) throws Exception {
-        if (base.equals(target)) {
-            return 1.0 * (1 + percent / 100.0);
-        }
-        
-        // Zawsze używamy USD jako bazy do pobierania kursów
-        String url = String.format(
-            "https://api.currencyfreaks.com/v2.0/rates/latest?apikey=%s&base=USD",
-            currencyFreaksApiKey
-        );
-        
-        RestTemplate restTemplate = new RestTemplate();
-        String response = restTemplate.getForObject(url, String.class);
-        logger.debug("Odpowiedź CurrencyFreaks: {}", response);
-        
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.readTree(response);
-        
-        if (!node.has("rates")) {
-            throw new RuntimeException("Odpowiedź CurrencyFreaks nie zawiera kursów");
-        }
-        
-        JsonNode rates = node.get("rates");
-        double result;
-        
-        if ("USD".equals(base) && rates.has(target)) {
-            // USD -> target bezpośrednio
-            result = rates.get(target).asDouble();
-        } else if ("USD".equals(target) && rates.has(base)) {
-            // base -> USD (kurs odwrotny)
-            result = 1.0 / rates.get(base).asDouble();
-        } else if (rates.has(base) && rates.has(target)) {
-            // base -> target przez USD
-            double usdToBase = rates.get(base).asDouble();
-            double usdToTarget = rates.get(target).asDouble();
-            result = usdToTarget / usdToBase;
-        } else {
-            throw new RuntimeException("Waluta " + base + " lub " + target + " nie znaleziona w odpowiedzi CurrencyFreaks");
-        }
-        
-        result = result * (1 + percent / 100.0);
-        
-        logger.info("Przeliczony kurs: {} {} = {} {} (z marżą {}%)", 1, base, result, target, percent);
-        return result;
     }
 
     // Klasy DTO

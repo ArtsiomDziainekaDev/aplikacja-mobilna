@@ -92,7 +92,7 @@ export interface NewsItem {
 }
 
 export type CurrencyDisplayCode = 'USD' | 'EUR' | 'PLN' | 'GBP';
-export type AppLanguage = 'en' | 'pl';
+export type AppLanguage = 'en' | 'pl' | 'ru';
 
 export interface ProfileSettings {
   displayName: string;
@@ -108,5 +108,4 @@ export interface ProfileSettings {
     showPortfolio: boolean;
     showActivity: boolean;
   };
-  biometricLogin: boolean;
 }

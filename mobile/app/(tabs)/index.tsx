@@ -20,7 +20,7 @@ import { useAppDispatch, useAppSelector } from '../../src/hooks/useRedux';
 import { fetchCrypto } from '../../src/store/slices/cryptoSlice';
 import { createOrder } from '../../src/store/slices/ordersSlice';
 import { getCryptoMeta } from '../../src/services/cryptoService';
-import { useI18n } from '../../src/i18n';
+import { isTranslationKey, TranslationKey, useI18n } from '../../src/i18n';
 
 interface Currency {
   symbol: string;
@@ -31,11 +31,18 @@ interface Currency {
   type: 'crypto' | 'fiat';
 }
 
-const FIATS: Currency[] = [
-  { symbol: 'USD', name: 'US Dollar', icon: '$', price: 1, change24h: 0, type: 'fiat' },
-  { symbol: 'EUR', name: 'Euro', icon: '€', price: 1.08, change24h: 0, type: 'fiat' },
-  { symbol: 'GBP', name: 'British Pound', icon: '£', price: 1.25, change24h: 0, type: 'fiat' },
-  { symbol: 'PLN', name: 'Polish Zloty', icon: 'zł', price: 0.25, change24h: 0, type: 'fiat' },
+interface FiatDefinition {
+  symbol: string;
+  nameKey: TranslationKey;
+  icon: string;
+  type: 'fiat';
+}
+
+const FIAT_META: FiatDefinition[] = [
+  { symbol: 'USD', nameKey: 'currency.usd', icon: '$', type: 'fiat' },
+  { symbol: 'EUR', nameKey: 'currency.eur', icon: '€', type: 'fiat' },
+  { symbol: 'GBP', nameKey: 'currency.gbp', icon: '£', type: 'fiat' },
+  { symbol: 'PLN', nameKey: 'currency.pln', icon: 'zł', type: 'fiat' },
 ];
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -56,6 +63,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const [favorites, setFavorites] = useState<string[]>(['BTC', 'ETH', 'SOL']);
   const [isEditingFavs, setIsEditingFavs] = useState(false);
+  const [fiatPrices, setFiatPrices] = useState<Record<string, number>>({ USD: 1 });
 
   useEffect(() => {
     dispatch(fetchCrypto());
@@ -67,6 +75,30 @@ export default function HomeScreen(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
+    const fetchFiatPrices = async () => {
+      const next: Record<string, number> = { USD: 1 };
+      await Promise.all(
+        FIAT_META.filter((f) => f.symbol !== 'USD').map(async (fiat) => {
+          try {
+            const { data } = await api.get<number>(
+              `/api/currencies/external-rate?base=${fiat.symbol}&target=USD&percent=0`
+            );
+            if (!cancelled && typeof data === 'number' && data > 0) {
+              next[fiat.symbol] = data;
+            }
+          } catch {
+            /* Skip fiat pairs that cannot be loaded. */
+          }
+        })
+      );
+      if (!cancelled) setFiatPrices(next);
+    };
+    fetchFiatPrices();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const fetchFavorites = async () => {
       try {
         const { data } = await api.get<string[]>('/api/crypto/favorites');
@@ -74,7 +106,7 @@ export default function HomeScreen(): React.JSX.Element {
           setFavorites(data);
         }
       } catch {
-        /* zostawiamy domyślne BTC/ETH/SOL */
+        /* Keep local defaults when favorites cannot be loaded. */
       }
     };
     fetchFavorites();
@@ -94,9 +126,24 @@ export default function HomeScreen(): React.JSX.Element {
     [cryptoList]
   );
 
+  const fiatCurrencies = useMemo<Currency[]>(
+    () =>
+      FIAT_META
+        .filter((f) => fiatPrices[f.symbol] != null && fiatPrices[f.symbol] > 0)
+        .map((f) => ({
+          symbol: f.symbol,
+          name: t(f.nameKey),
+          icon: f.icon,
+          price: fiatPrices[f.symbol],
+          change24h: 0,
+          type: 'fiat' as const,
+        })),
+    [fiatPrices, t]
+  );
+
   const allCurrencies = useMemo<Currency[]>(
-    () => [...cryptoCurrencies, ...FIATS],
-    [cryptoCurrencies]
+    () => [...cryptoCurrencies, ...fiatCurrencies],
+    [cryptoCurrencies, fiatCurrencies]
   );
 
   const pricesByCode = useMemo(() => {
@@ -148,7 +195,8 @@ export default function HomeScreen(): React.JSX.Element {
         })
       );
     } else {
-      const message = (result.payload as string | undefined) ?? orderError ?? t('home.orderFailed');
+      const rawMessage = (result.payload as string | undefined) ?? orderError ?? 'home.orderFailed';
+      const message = isTranslationKey(rawMessage) ? t(rawMessage) : rawMessage;
       Alert.alert(t('home.orderFailed'), message);
     }
   }, [dispatch, toCurrency, converted, isAmountValid, orderError, t]);
@@ -158,7 +206,7 @@ export default function HomeScreen(): React.JSX.Element {
       await api.delete(`/api/crypto/favorites/${symbol}`);
       setFavorites((prev) => prev.filter((f) => f !== symbol));
     } catch {
-      /* best-effort: brak sieci nie powinien blokować UI */
+      /* Keep the UI responsive if the favorite update fails. */
     }
   }, []);
 
@@ -171,7 +219,7 @@ export default function HomeScreen(): React.JSX.Element {
       await api.post(`/api/crypto/favorites/${symbol}`);
       setFavorites((prev) => (prev.includes(symbol) ? prev : [...prev, symbol]));
     } catch {
-      /* best-effort */
+      /* Keep the UI responsive if the favorite update fails. */
     }
   }, [favorites.length, t]);
 

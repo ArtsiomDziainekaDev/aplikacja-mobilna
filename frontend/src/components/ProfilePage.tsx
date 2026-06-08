@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Chip,
-  IconButton,
   Tabs,
   Tab,
   Table,
@@ -18,11 +17,8 @@ import {
   Avatar,
 } from '@mui/material';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import SettingsIcon from '@mui/icons-material/Settings';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import PercentIcon from '@mui/icons-material/Percent';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import axiosInstance from '../api/axios';
@@ -43,25 +39,51 @@ interface Holding {
   icon: string;
 }
 
-interface Activity {
-  type: 'Bought' | 'Sold';
-  symbol: string;
-  date: string;
-  value: number;
-}
+const getCryptoIcon = (symbol: string): string => {
+  const icons: Record<string, string> = {
+    BTC: '₿',
+    ETH: 'Ξ',
+    SOL: '◎',
+    BNB: '◆',
+    ADA: '₳',
+    DOT: '●',
+    LINK: '⬡',
+    LTC: 'Ł',
+    XRP: '✕',
+    DOGE: 'Ð',
+    AVAX: '▲',
+    MATIC: '⬟',
+    UNI: '🦄',
+    ATOM: '⚛',
+    FIL: '◈',
+  };
+  return icons[symbol] ?? '◇';
+};
 
-// Mock portfolio data
-const MOCK_HOLDINGS: Holding[] = [
-  { symbol: 'BTC', amount: 1.75, value: 109375, icon: '₿' },
-  { symbol: 'ETH', amount: 8.2, value: 33062, icon: 'Ξ' },
-  { symbol: 'SOL', amount: 120, value: 17760, icon: '◎' },
-];
+const buildHoldings = (orders: Order[]): Holding[] => {
+  const holdings = new Map<string, Holding>();
+  for (const order of orders) {
+    if (order.status !== 'COMPLETED') continue;
+    const current = holdings.get(order.currencyCode) ?? {
+      symbol: order.currencyCode,
+      amount: 0,
+      value: 0,
+      icon: getCryptoIcon(order.currencyCode),
+    };
+    current.amount += order.amount;
+    current.value += order.totalPrice ?? 0;
+    holdings.set(order.currencyCode, current);
+  }
+  return Array.from(holdings.values()).sort((a, b) => b.value - a.value);
+};
 
-const MOCK_ACTIVITY: Activity[] = [
-  { type: 'Bought', symbol: 'BTC', date: '2026-05-05 14:30', value: 31250 },
-  { type: 'Sold', symbol: 'ETH', date: '2026-05-04 09:15', value: 10080 },
-  { type: 'Bought', symbol: 'SOL', date: '2026-05-05 16:45', value: 7400 },
-];
+const getStatusColor = (status: string): string => {
+  if (status === 'COMPLETED') return '#00e676';
+  if (status === 'CANCELLED') return '#ff5252';
+  return '#ffd600';
+};
+
+const formatStatus = (status: string): string => status.replace(/_/g, ' ').toLowerCase();
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -69,27 +91,27 @@ const ProfilePage: React.FC = () => {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const { user } = useSelector((state: RootState) => state.auth);
 
-  const totalPortfolio = MOCK_HOLDINGS.reduce((sum, h) => sum + h.value, 0);
-  const totalProfit = 8750;
-  const profitPercent = 7.5;
+  const holdings = buildHoldings(orders);
+  const recentOrders = [...orders]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+  const totalPortfolio = holdings.reduce((sum, h) => sum + h.value, 0);
+  const completedCount = orders.filter((order) => order.status === 'COMPLETED').length;
 
-  // Fetch orders when Order History tab is selected
   useEffect(() => {
-    if (activeTab === 1) {
-      const fetchOrders = async () => {
-        setLoadingOrders(true);
-        try {
-          const response = await axiosInstance.get<Order[]>('/api/orders/my');
-          setOrders(response.data);
-        } catch (err) {
-          console.error('Error fetching orders:', err);
-        } finally {
-          setLoadingOrders(false);
-        }
-      };
-      fetchOrders();
-    }
-  }, [activeTab]);
+    const fetchOrders = async () => {
+      setLoadingOrders(true);
+      try {
+        const response = await axiosInstance.get<Order[]>('/api/orders/my');
+        setOrders(response.data);
+      } catch {
+        setOrders([]);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+    fetchOrders();
+  }, []);
 
   return (
     <Box sx={{ animation: 'fadeInUp 0.5s ease-out' }}>
@@ -129,26 +151,14 @@ const ProfilePage: React.FC = () => {
               </Avatar>
               <Box>
                 <Typography sx={{ fontWeight: 700, fontSize: '1.2rem' }}>
-                  {user?.email?.split('@')[0] || 'John Crypto'}
+                  {user?.email?.split('@')[0] || 'Guest'}
                 </Typography>
                 <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', mb: 0.8 }}>
-                  {user?.email || 'john.crypto@example.com'}
+                  {user?.email || 'Not signed in'}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Chip
-                    label="Verified Account"
-                    size="small"
-                    sx={{
-                      bgcolor: 'rgba(0,230,118,0.15)',
-                      color: '#00e676',
-                      fontWeight: 600,
-                      fontSize: '0.68rem',
-                      height: 22,
-                      border: '1px solid rgba(0,230,118,0.2)',
-                    }}
-                  />
-                  <Chip
-                    label="Pro Trader"
+                    label={user?.role?.replace('ROLE_', '') || 'Guest'}
                     size="small"
                     sx={{
                       bgcolor: 'rgba(255,255,255,0.08)',
@@ -162,16 +172,6 @@ const ProfilePage: React.FC = () => {
                 </Box>
               </Box>
             </Box>
-            <IconButton
-              sx={{
-                bgcolor: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.6)',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
-              }}
-            >
-              <SettingsIcon />
-            </IconButton>
           </Box>
 
           {/* Stats */}
@@ -199,22 +199,11 @@ const ProfilePage: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                 <TrendingUpIcon sx={{ fontSize: 15, color: 'rgba(255,255,255,0.35)' }} />
                 <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                  Total Profit
+                  Completed
                 </Typography>
               </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.5rem', color: '#00e676' }}>
-                +${totalProfit.toLocaleString()}
-              </Typography>
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                <PercentIcon sx={{ fontSize: 15, color: 'rgba(255,255,255,0.35)' }} />
-                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                  Profit %
-                </Typography>
-              </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.5rem', color: '#00e676' }}>
-                +{profitPercent}%
+              <Typography sx={{ fontWeight: 800, fontSize: '1.5rem' }}>
+                {completedCount}
               </Typography>
             </Box>
           </Box>
@@ -275,33 +264,39 @@ const ProfilePage: React.FC = () => {
               <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', mb: 2 }}>
                 Your Holdings
               </Typography>
-              {MOCK_HOLDINGS.map((holding, index) => (
-                <Box
-                  key={holding.symbol}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    py: 1.5,
-                    borderBottom: index < MOCK_HOLDINGS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography sx={{ fontSize: '1.3rem' }}>{holding.icon}</Typography>
-                    <Box>
-                      <Typography sx={{ fontWeight: 600, fontSize: '0.92rem' }}>
-                        {holding.symbol}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                        {holding.amount} {holding.symbol}
-                      </Typography>
+              {holdings.length === 0 ? (
+                <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem' }}>
+                  No completed orders yet
+                </Typography>
+              ) : (
+                holdings.map((holding, index) => (
+                  <Box
+                    key={holding.symbol}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      py: 1.5,
+                      borderBottom: index < holdings.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Typography sx={{ fontSize: '1.3rem' }}>{holding.icon}</Typography>
+                      <Box>
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.92rem' }}>
+                          {holding.symbol}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                          {holding.amount} {holding.symbol}
+                        </Typography>
+                      </Box>
                     </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                      ${holding.value.toLocaleString()}
+                    </Typography>
                   </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                    ${holding.value.toLocaleString()}
-                  </Typography>
-                </Box>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -320,31 +315,30 @@ const ProfilePage: React.FC = () => {
               <Typography sx={{ fontWeight: 700, fontSize: '1.05rem', mb: 2 }}>
                 Recent Activity
               </Typography>
-              {MOCK_ACTIVITY.map((activity, index) => {
-                const isBuy = activity.type === 'Bought';
-                return (
+              {recentOrders.length === 0 ? (
+                <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem' }}>
+                  No recent activity
+                </Typography>
+              ) : (
+                recentOrders.map((order, index) => (
                   <Box
-                    key={index}
+                    key={order.id}
                     sx={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       py: 1.5,
-                      borderBottom: index < MOCK_ACTIVITY.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                      borderBottom: index < recentOrders.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      {isBuy ? (
-                        <TrendingUpIcon sx={{ fontSize: 20, color: '#00e676' }} />
-                      ) : (
-                        <TrendingDownIcon sx={{ fontSize: 20, color: '#ff5252' }} />
-                      )}
+                      <TrendingUpIcon sx={{ fontSize: 20, color: '#e91e8c' }} />
                       <Box>
                         <Typography sx={{ fontWeight: 600, fontSize: '0.92rem' }}>
-                          {activity.type} {activity.symbol}
+                          Order {order.currencyCode}
                         </Typography>
                         <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>
-                          {activity.date}
+                          {new Date(order.createdAt).toLocaleString()}
                         </Typography>
                       </Box>
                     </Box>
@@ -352,14 +346,14 @@ const ProfilePage: React.FC = () => {
                       sx={{
                         fontWeight: 700,
                         fontSize: '0.95rem',
-                        color: isBuy ? '#00e676' : '#ff5252',
+                        color: '#fff',
                       }}
                     >
-                      ${activity.value.toLocaleString()}
+                      ${(order.totalPrice ?? 0).toLocaleString()}
                     </Typography>
                   </Box>
-                );
-              })}
+                ))
+              )}
             </CardContent>
           </Card>
         </Box>
@@ -386,7 +380,6 @@ const ProfilePage: React.FC = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Order ID</TableCell>
-                    <TableCell>Type</TableCell>
                     <TableCell>Crypto</TableCell>
                     <TableCell align="right">Amount</TableCell>
                     <TableCell align="right">Total</TableCell>
@@ -396,13 +389,8 @@ const ProfilePage: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {orders.map((order) => {
-                    const isBuy = order.totalPrice > 0;
-                    const statusColor =
-                      order.status === 'COMPLETED' ? '#00e676' :
-                      order.status === 'CANCELLED' ? '#ff5252' : '#ffd600';
-                    const statusLabel =
-                      order.status === 'COMPLETED' ? 'completed' :
-                      order.status === 'CANCELLED' ? 'cancelled' : 'pending';
+                    const statusColor = getStatusColor(order.status);
+                    const statusLabel = formatStatus(order.status);
 
                     return (
                       <TableRow
@@ -414,21 +402,6 @@ const ProfilePage: React.FC = () => {
                       >
                         <TableCell sx={{ fontWeight: 600, color: '#fff' }}>
                           #ORD-{order.id.toString().padStart(3, '0')}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={isBuy ? <TrendingUpIcon /> : <TrendingDownIcon />}
-                            label={isBuy ? 'BUY' : 'SELL'}
-                            size="small"
-                            sx={{
-                              bgcolor: isBuy ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
-                              color: isBuy ? '#00e676' : '#ff5252',
-                              fontWeight: 700,
-                              fontSize: '0.72rem',
-                              height: 26,
-                              '& .MuiChip-icon': { color: isBuy ? '#00e676' : '#ff5252', fontSize: 14 },
-                            }}
-                          />
                         </TableCell>
                         <TableCell sx={{ fontWeight: 600 }}>{order.currencyCode}</TableCell>
                         <TableCell align="right">{order.amount}</TableCell>
@@ -459,73 +432,9 @@ const ProfilePage: React.FC = () => {
               </Table>
             </TableContainer>
           ) : (
-            /* Fallback mock data when no real orders */
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Order ID</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Crypto</TableCell>
-                    <TableCell align="right">Amount</TableCell>
-                    <TableCell align="right">Price</TableCell>
-                    <TableCell align="right">Total</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {[
-                    { id: '#ORD-001', type: 'BUY', crypto: 'BTC', amount: '0.5', price: '$62,500', total: '$31,250', status: 'completed', statusColor: '#00e676', date: '2026-05-05 14:30' },
-                    { id: '#ORD-002', type: 'SELL', crypto: 'ETH', amount: '2.5', price: '$4,032', total: '$10,080', status: 'completed', statusColor: '#00e676', date: '2026-05-04 09:15' },
-                    { id: '#ORD-003', type: 'BUY', crypto: 'SOL', amount: '50', price: '$148', total: '$7,400', status: 'pending', statusColor: '#ffd600', date: '2026-05-05 16:45' },
-                    { id: '#ORD-004', type: 'BUY', crypto: 'BTC', amount: '0.25', price: '$61,000', total: '$15,250', status: 'completed', statusColor: '#00e676', date: '2026-05-03 11:20' },
-                    { id: '#ORD-005', type: 'SELL', crypto: 'ADA', amount: '1000', price: '$0.46', total: '$460', status: 'cancelled', statusColor: '#ff5252', date: '2026-05-02 08:00' },
-                  ].map((row, index) => {
-                    const isBuy = row.type === 'BUY';
-                    return (
-                      <TableRow key={index} sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}>
-                        <TableCell sx={{ fontWeight: 600, color: '#fff' }}>{row.id}</TableCell>
-                        <TableCell>
-                          <Chip
-                            icon={isBuy ? <TrendingUpIcon /> : <TrendingDownIcon />}
-                            label={row.type}
-                            size="small"
-                            sx={{
-                              bgcolor: isBuy ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)',
-                              color: isBuy ? '#00e676' : '#ff5252',
-                              fontWeight: 700,
-                              fontSize: '0.72rem',
-                              height: 26,
-                              '& .MuiChip-icon': { color: isBuy ? '#00e676' : '#ff5252', fontSize: 14 },
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{row.crypto}</TableCell>
-                        <TableCell align="right">{row.amount}</TableCell>
-                        <TableCell align="right">{row.price}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: '#fff' }}>{row.total}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={row.status}
-                            size="small"
-                            sx={{
-                              bgcolor: `${row.statusColor}15`,
-                              color: row.statusColor,
-                              fontWeight: 600,
-                              fontSize: '0.7rem',
-                              height: 24,
-                              border: `1px solid ${row.statusColor}30`,
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem' }}>{row.date}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ py: 6, textAlign: 'center', color: 'rgba(255,255,255,0.45)' }}>
+              No orders yet
+            </Box>
           )}
         </Card>
       )}
