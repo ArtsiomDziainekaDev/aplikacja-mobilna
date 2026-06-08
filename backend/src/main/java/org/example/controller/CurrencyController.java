@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -129,8 +128,14 @@ public class CurrencyController {
             double rate = currencyRateService.getExternalRate(base, target, percent);
             return ResponseEntity.ok(rate);
         } catch (Exception e) {
-            logger.error("Błąd podczas pobierania kursu zewnętrznego: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(null);
+            double fallbackRate = currencyRateService.getFallbackRate(base, target, percent);
+            logger.warn(
+                "Błąd podczas pobierania kursu zewnętrznego, używam kursu lokalnego dla {} -> {}: {}",
+                base,
+                target,
+                e.getMessage()
+            );
+            return ResponseEntity.ok(fallbackRate);
         }
     }
 

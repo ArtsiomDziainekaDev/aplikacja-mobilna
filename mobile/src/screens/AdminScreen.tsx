@@ -15,14 +15,14 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppSelector } from '../src/hooks/useRedux';
-import { api } from '../src/api/client';
-import FadeInScreen from '../src/components/FadeInScreen';
-import haptics from '../src/utils/haptics';
-import { colors } from '../src/theme/colors';
-import { spacing } from '../src/theme/spacing';
-import type { OrderStatus } from '../src/types';
-import { TranslationKey, useI18n } from '../src/i18n';
+import { useAppSelector } from '../hooks/useRedux';
+import { api } from '../api/client';
+import FadeInScreen from '../components/FadeInScreen';
+import haptics from '../utils/haptics';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import type { OrderStatus } from '../types';
+import { TranslationKey, useI18n } from '../i18n';
 
 interface AdminOrder {
   id: number;

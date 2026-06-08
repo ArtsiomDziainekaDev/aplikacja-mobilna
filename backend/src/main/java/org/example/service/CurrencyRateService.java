@@ -61,10 +61,21 @@ public class CurrencyRateService {
 
     public double getDefaultRate(String currencyCode) {
         return switch (currencyCode) {
+            case "PLN" -> 1.0;
             case "USD" -> 3.75;
             case "EUR" -> 4.05;
             case "GBP" -> 4.75;
             default -> 4.0;
         };
+    }
+
+    public double getFallbackRate(String base, String target, double percent) {
+        if (base.equals(target)) {
+            return 1.0 * (1 + percent / 100.0);
+        }
+
+        double baseToPln = getDefaultRate(base);
+        double targetToPln = getDefaultRate(target);
+        return (baseToPln / targetToPln) * (1 + percent / 100.0);
     }
 }

@@ -447,7 +447,7 @@ export default function ProfileScreen(): React.JSX.Element {
         {user?.role === 'ROLE_ADMIN' && (
           <TouchableOpacity
             style={styles.adminButton}
-            onPress={() => router.push('/admin')}
+            onPress={() => router.push('/admin' as Href)}
             activeOpacity={0.85}
           >
             <MaterialCommunityIcons name="shield-account" size={20} color="#fff" />

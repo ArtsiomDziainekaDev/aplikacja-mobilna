@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Redirect, Slot } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppSelector } from '../../src/hooks/useRedux';
@@ -11,7 +11,7 @@ import Sidebar, { SIDEBAR_WIDTH } from '../../src/components/Sidebar';
 export default function MainLayout(): React.JSX.Element {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const { width } = useWindowDimensions();
-  const isDesktop = width >= 768; // standard md breakpoint
+  const isDesktop = width >= 768;
   const insets = useSafeAreaInsets();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -23,8 +23,7 @@ export default function MainLayout(): React.JSX.Element {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
-      {/* Sidebar Component */}
+
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -41,9 +40,9 @@ export default function MainLayout(): React.JSX.Element {
             <MaterialCommunityIcons name="menu" size={24} color="#fff" />
           </TouchableOpacity>
         )}
-        
-        <View style={styles.slotContainer}>
-          <Slot />
+
+        <View style={styles.contentContainer}>
+          <Stack screenOptions={{ headerShown: false, animation: 'none' }} />
         </View>
       </View>
     </View>
@@ -79,7 +78,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  slotContainer: {
+  contentContainer: {
     flex: 1,
   },
 });

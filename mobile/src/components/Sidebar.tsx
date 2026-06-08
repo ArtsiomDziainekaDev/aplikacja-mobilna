@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, useSegments } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
@@ -25,7 +25,7 @@ import { TranslationKey, useI18n } from '../i18n';
 export const SIDEBAR_WIDTH = 240;
 
 const SETTINGS_ROUTE = '/settings' as Href;
-const PROFILE_ROUTE = '/(tabs)/profile' as Href;
+const PROFILE_ROUTE = '/profile' as Href;
 
 interface NavItem {
   labelKey: TranslationKey;
@@ -44,7 +44,7 @@ const accountNavItems: NavItem[] = [
   { labelKey: 'nav.settings', icon: 'cog', path: SETTINGS_ROUTE },
 ];
 
-const ADMIN_NAV_ITEM: NavItem = { labelKey: 'common.admin', icon: 'shield-account', path: '/admin' };
+const ADMIN_NAV_ITEM: NavItem = { labelKey: 'common.admin', icon: 'shield-account', path: '/admin' as Href };
 
 interface SidebarProps {
   isOpen: boolean;
@@ -55,6 +55,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): React.JSX.Element | null {
   const router = useRouter();
   const pathname = usePathname();
+  const segments = useSegments() as string[];
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((s) => s.auth);
   const { settings, loaded: profileLoaded } = useAppSelector((s) => s.profile);
@@ -159,21 +160,23 @@ export default function Sidebar({ isOpen, onClose, isDesktop }: SidebarProps): R
 
   const isActive = useCallback((path: Href): boolean => {
     const target = typeof path === 'string' ? path : (path as { pathname?: string }).pathname ?? '';
+    const routeName = target.replace(/^\//, '');
 
-    if (target === '/settings') {
-      return pathname === '/settings' || pathname === '/edit-profile';
+    if (routeName === 'settings') {
+      return segments.includes('settings') || segments.includes('edit-profile');
     }
-    if (target === '/' || target === '/(tabs)') {
-      return pathname === '/' || pathname === '/index' || pathname === '/(tabs)';
+    if (routeName === 'admin') {
+      return segments.includes('admin');
     }
-    if (target === '/(tabs)/profile') {
-      return pathname === '/profile' || pathname === '/(tabs)/profile';
+    if (routeName === 'profile') {
+      return segments.includes('profile');
+    }
+    if (target === '/' || target === '/(tabs)' || routeName === '(tabs)') {
+      return segments.length === 1 && segments[0] === '(tabs)';
     }
 
-    const normalized = target.replace('/(tabs)', '');
-    if (!normalized) return false;
-    return pathname.startsWith(normalized) || pathname.startsWith(target);
-  }, [pathname]);
+    return segments.includes(routeName) || pathname === target || pathname.endsWith(`/${routeName}`);
+  }, [pathname, segments]);
 
   const displayName = useMemo(
     () => settings.displayName.trim() || user?.email?.split('@')[0] || t('profile.guest'),
