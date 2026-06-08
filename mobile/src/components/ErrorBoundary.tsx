@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { I18nContext } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -13,6 +14,9 @@ interface State {
 
 /** Łapie błędy renderowania i wyświetla komunikat z przyciskiem retry. */
 export class ErrorBoundary extends Component<Props, State> {
+  static contextType = I18nContext;
+  declare context: React.ContextType<typeof I18nContext>;
+
   state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -30,12 +34,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.hasError && this.state.error) {
       if (this.props.fallback) return this.props.fallback;
+      const t = this.context?.t;
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Coś poszło nie tak</Text>
+          <Text style={styles.title}>{t ? t('errorBoundary.title') : 'Coś poszło nie tak'}</Text>
           <Text style={styles.message}>{this.state.error.message}</Text>
           <TouchableOpacity style={styles.button} onPress={this.retry}>
-            <Text style={styles.buttonText}>Spróbuj ponownie</Text>
+            <Text style={styles.buttonText}>{t ? t('errorBoundary.retry') : 'Spróbuj ponownie'}</Text>
           </TouchableOpacity>
         </View>
       );

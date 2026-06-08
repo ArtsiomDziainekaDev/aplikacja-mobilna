@@ -11,6 +11,7 @@ import { useAppDispatch } from '../src/hooks/useRedux';
 import { PaperProvider } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../src/theme/colors';
+import { I18nProvider } from '../src/i18n';
 
 function RootLayoutNav(): React.JSX.Element {
   const dispatch = useAppDispatch();
@@ -34,32 +35,34 @@ export default function RootLayout(): React.JSX.Element {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <StatusBar style="light" />
-      <Provider store={store}>
-        <PaperProvider
-          theme={{
-            dark: true,
-            colors: {
-              primary: colors.primary,
-              background: colors.background,
-              surface: colors.surface,
-              error: colors.error,
-            },
-          }}
-        >
-          <ThemeProvider value={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } }}>
-            <LinearGradient
-              colors={['#4a148c', '#1a0533', '#880e4f']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ flex: 1 }}
-            >
-              <RootLayoutNav />
-            </LinearGradient>
-          </ThemeProvider>
-        </PaperProvider>
-      </Provider>
-    </ErrorBoundary>
+    <I18nProvider>
+      <ErrorBoundary>
+        <StatusBar style="light" />
+        <Provider store={store}>
+          <PaperProvider
+            theme={{
+              dark: true,
+              colors: {
+                primary: colors.primary,
+                background: colors.background,
+                surface: colors.surface,
+                error: colors.error,
+              },
+            }}
+          >
+            <ThemeProvider value={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: 'transparent' } }}>
+              <LinearGradient
+                colors={['#4a148c', '#1a0533', '#880e4f']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ flex: 1 }}
+              >
+                <RootLayoutNav />
+              </LinearGradient>
+            </ThemeProvider>
+          </PaperProvider>
+        </Provider>
+      </ErrorBoundary>
+    </I18nProvider>
   );
 }

@@ -20,6 +20,7 @@ import { fetchCrypto } from '../../src/store/slices/cryptoSlice';
 import { fetchKlines } from '../../src/services/cryptoService';
 import type { CryptoView } from '../../src/types';
 import type { TimeFilter } from '../../src/services/cryptoService';
+import { useI18n } from '../../src/i18n';
 
 const TIME_FILTERS: ReadonlyArray<TimeFilter> = ['1H', '24H', '7D', '1M', '1Y'];
 const REFRESH_INTERVAL_MS = 30_000;
@@ -85,6 +86,7 @@ export default function CryptoScreen(): React.JSX.Element {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
+  const { t } = useI18n();
   const { list: cryptos, loading, fromCache } = useAppSelector((s) => s.crypto);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -161,15 +163,15 @@ export default function CryptoScreen(): React.JSX.Element {
           <MaterialCommunityIcons name="chart-line" size={20} color={colors.textSecondary} />
         </View>
         <View>
-          <Text style={styles.title}>Crypto Charts</Text>
-          <Text style={styles.subtitle}>Track real-time prices</Text>
+          <Text style={styles.title}>{t('crypto.chartsTitle')}</Text>
+          <Text style={styles.subtitle}>{t('crypto.chartsSubtitle')}</Text>
         </View>
       </View>
 
       {fromCache && (
         <View style={styles.offlineBanner}>
           <MaterialCommunityIcons name="cloud-off-outline" size={14} color={colors.warning} />
-          <Text style={styles.offlineText}>Cached data (offline)</Text>
+          <Text style={styles.offlineText}>{t('crypto.cached')}</Text>
         </View>
       )}
 
@@ -249,18 +251,18 @@ export default function CryptoScreen(): React.JSX.Element {
                 style={{ borderRadius: 12, marginLeft: -16 }}
               />
             ) : (
-              <Text style={styles.noChart}>No chart data</Text>
+              <Text style={styles.noChart}>{t('crypto.noChart')}</Text>
             )}
           </View>
         </View>
       )}
 
       <View style={styles.listHeader}>
-        <Text style={styles.listTitle}>All Cryptocurrencies</Text>
-        <Text style={styles.listCount}>{cryptos.length} coins</Text>
+        <Text style={styles.listTitle}>{t('crypto.listTitle')}</Text>
+        <Text style={styles.listCount}>{t('crypto.count', { count: cryptos.length })}</Text>
       </View>
     </View>
-  ), [activeCrypto, chartData, chartLabels, chartLoading, chartWidth, cryptos.length, fromCache, isPositive, timeFilter]);
+  ), [activeCrypto, chartData, chartLabels, chartLoading, chartWidth, cryptos.length, fromCache, isPositive, t, timeFilter]);
 
   if (loading && cryptos.length === 0) {
     return (

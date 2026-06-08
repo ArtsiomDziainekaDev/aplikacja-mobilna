@@ -15,6 +15,7 @@ import { fetchNews, triggerNewsRefresh } from '../../src/api/news';
 import type { NewsItem } from '../../src/types';
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
+import { useI18n } from '../../src/i18n';
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Market: { bg: colors.tagMarket, text: '#000' },
@@ -57,6 +58,8 @@ function formatTimeAgo(value: string): string {
 }
 
 function NewsCard({ item, onOpen, featured }: { item: NewsItem; onOpen: (url: string) => void; featured?: boolean }): React.JSX.Element {
+  const { t } = useI18n();
+
   return (
     <TouchableOpacity
       style={[styles.card, featured && styles.cardFeatured]}
@@ -84,9 +87,9 @@ function NewsCard({ item, onOpen, featured }: { item: NewsItem; onOpen: (url: st
       <Text style={styles.summary} numberOfLines={3}>{item.summary}</Text>
 
       <View style={styles.cardFooter}>
-        <Text style={styles.source}>Source: {item.source || 'News'}</Text>
+        <Text style={styles.source}>{t('news.source', { source: item.source || t('news.sourceFallback') })}</Text>
         <View style={styles.readMoreRow}>
-          <Text style={styles.readMore}>Read More</Text>
+          <Text style={styles.readMore}>{t('news.readMore')}</Text>
           <MaterialCommunityIcons name="open-in-new" size={14} color={colors.primary} />
         </View>
       </View>
@@ -96,6 +99,7 @@ function NewsCard({ item, onOpen, featured }: { item: NewsItem; onOpen: (url: st
 
 export default function NewsScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -115,12 +119,12 @@ export default function NewsScreen(): React.JSX.Element {
       setNews(items);
       setError(null);
     } catch {
-      setError('Failed to load news. Try again.');
+      setError(t('news.error'));
     } finally {
       if (mode === 'initial') setLoading(false);
       else setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadNews();
@@ -159,7 +163,7 @@ export default function NewsScreen(): React.JSX.Element {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading news...</Text>
+        <Text style={styles.loadingText}>{t('news.loading')}</Text>
       </View>
     );
   }
@@ -170,7 +174,7 @@ export default function NewsScreen(): React.JSX.Element {
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => void loadNews()}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
+          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -189,8 +193,8 @@ export default function NewsScreen(): React.JSX.Element {
               <MaterialCommunityIcons name="newspaper-variant-outline" size={20} color={colors.textSecondary} />
             </View>
             <View>
-              <Text style={styles.heroTitle}>News & Updates</Text>
-              <Text style={styles.heroSubtitle}>Stay informed with the latest crypto news</Text>
+              <Text style={styles.heroTitle}>{t('news.title')}</Text>
+              <Text style={styles.heroSubtitle}>{t('news.subtitle')}</Text>
             </View>
           </View>
         }
@@ -205,8 +209,8 @@ export default function NewsScreen(): React.JSX.Element {
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="file-document-outline" size={64} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>No news yet</Text>
-            <Text style={styles.emptyText}>Pull down to refresh and fetch latest news.</Text>
+            <Text style={styles.emptyTitle}>{t('news.emptyTitle')}</Text>
+            <Text style={styles.emptyText}>{t('news.emptySubtitle')}</Text>
           </View>
         }
       />
