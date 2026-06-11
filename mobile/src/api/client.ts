@@ -73,6 +73,10 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // localtunnel (loca.lt) shows an interstitial without this header.
+    if (config.baseURL?.includes('loca.lt') && config.headers) {
+      config.headers['Bypass-Tunnel-Reminder'] = 'true';
+    }
     return config;
   },
   (err) => Promise.reject(err)
