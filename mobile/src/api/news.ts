@@ -7,5 +7,6 @@ export async function fetchNews(): Promise<NewsItem[]> {
 }
 
 export async function triggerNewsRefresh(): Promise<void> {
-  await api.post('/api/news/refresh');
+  // Sync refresh on backend: NewsAPI + up to 10 Gemini calls can take ~30s.
+  await api.post('/api/news/refresh', null, { timeout: 120000 });
 }

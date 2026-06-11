@@ -35,49 +35,57 @@ public class NewsService {
         }
     }
 
+    /** Called from API — blocks until cache is updated (mobile waits for this). */
     public void refreshNews() {
-        new Thread(() -> {
-            try {
-                List<NewsApiClient.RawNewsItem> rawNews = newsApiClient.getLatestCryptoNews(15);
-                
-                if (rawNews.isEmpty()) {
-                    logger.info("No news fetched from News API");
-                    return;
-                }
+        refreshNewsInternal();
+    }
 
-                List<NewsItemDTO> processedNews = new ArrayList<>();
-                
-                for (int i = 0; i < Math.min(rawNews.size(), MAX_NEWS_ITEMS); i++) {
-                    NewsApiClient.RawNewsItem raw = rawNews.get(i);
-                    
-                    String summary = geminiApiClient.summarizeNews(raw.title, raw.description);
-                    
-                    NewsItemDTO newsItem = NewsItemDTO.builder()
-                            .id(UUID.randomUUID().toString())
-                            .title(raw.title)
-                            .summary(summary)
-                            .source(raw.source)
-                            .url(raw.url)
-                            .imageUrl(raw.imageUrl)
-                            .publishedAt(parsePublishedAt(raw.publishedAt))
-                            .tags(extractTags(raw.title + " " + raw.description))
-                            .build();
-                    
-                    processedNews.add(newsItem);
-                }
+    /** Warm cache on startup without blocking app boot. */
+    public void refreshNewsAsync() {
+        Thread.startVirtualThread(this::refreshNewsInternal);
+    }
 
-                cacheLock.writeLock().lock();
-                try {
-                    newsCache.clear();
-                    newsCache.addAll(processedNews);
-                    logger.info("News cache updated with {} items", processedNews.size());
-                } finally {
-                    cacheLock.writeLock().unlock();
-                }
-            } catch (Exception e) {
-                logger.error("Error refreshing news", e);
+    private void refreshNewsInternal() {
+        try {
+            List<NewsApiClient.RawNewsItem> rawNews = newsApiClient.getLatestCryptoNews(15);
+
+            if (rawNews.isEmpty()) {
+                logger.info("No news fetched from News API");
+                return;
             }
-        }).start();
+
+            List<NewsItemDTO> processedNews = new ArrayList<>();
+
+            for (int i = 0; i < Math.min(rawNews.size(), MAX_NEWS_ITEMS); i++) {
+                NewsApiClient.RawNewsItem raw = rawNews.get(i);
+
+                String summary = geminiApiClient.summarizeNews(raw.title, raw.description);
+
+                NewsItemDTO newsItem = NewsItemDTO.builder()
+                        .id(UUID.randomUUID().toString())
+                        .title(raw.title)
+                        .summary(summary)
+                        .source(raw.source)
+                        .url(raw.url)
+                        .imageUrl(raw.imageUrl)
+                        .publishedAt(parsePublishedAt(raw.publishedAt))
+                        .tags(extractTags(raw.title + " " + raw.description))
+                        .build();
+
+                processedNews.add(newsItem);
+            }
+
+            cacheLock.writeLock().lock();
+            try {
+                newsCache.clear();
+                newsCache.addAll(processedNews);
+                logger.info("News cache updated with {} items", processedNews.size());
+            } finally {
+                cacheLock.writeLock().unlock();
+            }
+        } catch (Exception e) {
+            logger.error("Error refreshing news", e);
+        }
     }
 
     private LocalDateTime parsePublishedAt(String dateString) {

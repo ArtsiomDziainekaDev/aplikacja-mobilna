@@ -123,8 +123,13 @@ export default function NewsScreen(): React.JSX.Element {
       let items = await fetchNews();
       if (items.length === 0) {
         await triggerNewsRefresh();
-        await wait(mode === 'initial' ? 1800 : 2500);
-        items = await fetchNews();
+        // Backend fetches NewsAPI + up to 10 Gemini summaries (~15–30s).
+        const attempts = mode === 'initial' ? 20 : 15;
+        for (let i = 0; i < attempts; i++) {
+          await wait(1500);
+          items = await fetchNews();
+          if (items.length > 0) break;
+        }
       }
       setNews(items);
       setError(null);
