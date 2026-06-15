@@ -180,6 +180,10 @@ curl -X GET http://localhost:8081/api/crypto -H "Authorization: Bearer <token>"
 
 ---
 
+## Changelog (ostatnie zmiany)
+
+- 2026-06-15: Aplikacja mobilna zapisuje avatar profilu lokalnie przez `expo-file-system`.
+
 ## Licencja
 
 Projekt edukacyjny.  
