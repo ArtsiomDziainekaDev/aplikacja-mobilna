@@ -1,74 +1,233 @@
-# ProjectAPI1.1 — Platforma wymiany kryptowalut i walut
+<div align="center">
 
-## Temat projektu
+# CryptoExchange — Crypto & FX Trading Platform
 
-Webowa i mobilna aplikacja do wymiany kryptowalut i walut tradycyjnych z interfejsem użytkownika i dostępem do bazy danych PostgreSQL. Umożliwia przeglądanie kursów, składanie zamówień i zarządzanie kontem. Panel administracyjny służy do zarządzania zamówieniami i użytkownikami.
+**A full-stack platform for trading cryptocurrencies and fiat currencies, with a web dashboard, a native mobile app, and an admin back office.**
 
-## Autorzy
+[![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203.2-6DB33F?logo=springboot&logoColor=white)](#tech-stack)
+[![Frontend](https://img.shields.io/badge/Web-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](#tech-stack)
+[![Mobile](https://img.shields.io/badge/Mobile-Expo%20%2F%20React%20Native-000020?logo=expo&logoColor=white)](#tech-stack)
+[![Database](https://img.shields.io/badge/DB-PostgreSQL%2016-4169E1?logo=postgresql&logoColor=white)](#tech-stack)
+[![Containerized](https://img.shields.io/badge/Run-Docker%20Compose-2496ED?logo=docker&logoColor=white)](#quick-start)
 
-- **Artsiom Dziaineka** — 68088  
-- **Volodymyr Hryhoriak** — 55651 
+</div>
 
-## Architektura
+---
 
-- **Backend** — Spring Boot 3.2.0 (Java 21), REST API  
-- **Frontend (web)** — React 18, TypeScript, Material-UI, Vite  
-- **Aplikacja mobilna** — React Native (Expo), Expo Router, Redux Toolkit  
-- **Baza danych** — PostgreSQL 16  
+## Overview
 
-## Funkcjonalności
+CryptoExchange lets users browse live market rates, place buy/sell orders, and manage their account across **web and mobile**, while administrators handle orders and users from a dedicated panel. Live crypto prices stream from the **Binance** public API, fiat rates come from **CurrencyFreaks**, and a built-in **News** feed is summarized by **Google Gemini**.
 
-- **Użytkownicy:** rejestracja (`POST /api/auth/signup`), logowanie (`POST /api/auth/signin`), status (`GET /api/auth/check`), role USER/ADMIN, hasła BCrypt  
-- **Zamówienia:** tworzenie (`POST /api/orders`), moje zamówienia (`GET /api/orders/my`), lista dla admina (`GET /api/orders`), zmiana statusu (`PUT /api/orders/{id}/status`)  
-- **Kryptowaluty:** lista (`GET /api/crypto`), cena (`GET /api/crypto/{symbol}/price`), CoinMarketCap, BTC, ETH, BNB, ADA, SOL, DOT, LINK, LTC  
-- **Waluty:** lista i kursy (`GET /api/currencies`, CurrencyFreaks), USD, EUR, GBP względem PLN  
-- **Admin:** `GET /api/admin/test`, `GET /api/admin/orders`  
+- **Real-time pricing** — 15+ cryptocurrencies (BTC, ETH, BNB, SOL, XRP, DOGE, AVAX, MATIC…) priced live, with fiat pairs against PLN.
+- **End-to-end ordering** — place orders, track status, and collect them; admins move orders through their lifecycle.
+- **One stack, three clients** — a shared Spring Boot API powers the React web app and the Expo mobile app.
+- **Secure by default** — JWT auth, BCrypt password hashing, role-based access (USER / ADMIN), secrets kept in environment variables.
 
-## Wymagania
+## Architecture
 
-- Docker 20.10+, Docker Compose 2.0+  
-- Dla mobilnej: Node.js 18+, dla emulatora Android — Android Studio / Android SDK  
+```mermaid
+flowchart LR
+    subgraph Clients
+        W[React Web App<br/>Vite + MUI]
+        M[Mobile App<br/>Expo / React Native]
+    end
+    A[Spring Boot REST API<br/>JWT + Spring Security]
+    DB[(PostgreSQL 16)]
+    EXT[External APIs<br/>Binance · CurrencyFreaks<br/>NewsAPI · Gemini]
 
-## Uruchomienie
-
-### Backend i frontend web (Docker)
-
-```bash
-docker compose up
+    W -->|HTTPS / JSON| A
+    M -->|HTTPS / JSON| A
+    A --> DB
+    A --> EXT
 ```
 
-- **Frontend:** http://localhost  
-- **Backend API:** http://localhost:8081  
-- **Baza:** localhost:5432  
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Spring Boot 3.2 (Java 21), Spring Security (JWT), Spring Data JPA, Flyway, Gradle |
+| **Web** | React 18, TypeScript, Vite, Material-UI, Redux Toolkit, React Router, Axios |
+| **Mobile** | Expo, React Native, Expo Router, Redux Toolkit, React Native Paper, SecureStore, i18n |
+| **Database** | PostgreSQL 16 |
+| **Infrastructure** | Docker, Docker Compose, Nginx |
+| **External APIs** | Binance (crypto), CurrencyFreaks (fiat), NewsAPI + Google Gemini (news) |
 
-### Aplikacja mobilna (Expo)
+## Features
 
-1. Uruchom backend: w katalogu głównym `docker compose up`.  
-2. W katalogu projektu:
+- **Authentication & roles** — sign up, sign in, token check, persistent sessions; USER and ADMIN roles with route protection.
+- **Live crypto market** — real-time prices from Binance with a configurable sell-side discount, plus per-symbol price lookup.
+- **Favorites** — users can star and manage their favorite coins.
+- **Fiat exchange** — USD, EUR, GBP rates against PLN via CurrencyFreaks.
+- **Orders** — create orders, view your own history, and track status; admins list, update status, and mark orders as collected.
+- **Admin panel** — manage all orders and active orders from a privileged view.
+- **News feed** — latest market news fetched from NewsAPI and summarized by Gemini AI.
+- **Mobile-native UX** — secure token storage, geolocation, offline cache, network awareness, haptics, and animations.
+- **Internationalization** — multi-language support in the mobile app.
 
-   ```bash
-   cd mobile
-   npm install
-   ```
+## Quick Start
 
-3. Ustaw adres API w `mobile/.env`, kopiując `mobile/.env.example`:
-   - **Przeglądarka (web):** `EXPO_PUBLIC_API_URL=http://localhost:8081`
-   - **Emulator Android:** `EXPO_PUBLIC_API_URL=http://10.0.2.2:8081`
-   - **Urządzenie w sieci:** `EXPO_PUBLIC_API_URL=http://IP_KOMPUTERA:8081`
+### Prerequisites
 
-4. Uruchom Expo dla aplikacji mobilnej na osobnym porcie, aby nie konfliktował z backendem:
+- **Docker** 20.10+ and **Docker Compose** 2.0+
+- For the mobile app: **Node.js** 18+ (and Android Studio / Android SDK for an emulator)
 
-   ```bash
-   npx expo start --port 8082 -c
-   ```
+### 1. Clone and configure
 
-5. **Wersja mobilna (nie web):**
-   - **Android:** w terminalu naciśnij **a** (otwiera emulator, jeśli jest Android SDK i ANDROID_HOME) lub zeskanuj QR kod aplikacją **Expo Go** na telefonie.  
-   - **iOS:** zeskanuj QR w aplikacji **Expo Go** na urządzeniu.  
+```bash
+git clone https://github.com/ArtsiomDziainekaDev/aplikacja-mobilna.git
+cd aplikacja-mobilna
+cp .env.example .env   # Windows: copy .env.example .env
+```
 
-Jeśli przy **a** pojawi się błąd „Android SDK path” / „adb”: zainstaluj Android Studio, skonfiguruj emulator i ustaw zmienną `ANDROID_HOME` (np. `C:\\Users\\TwojaNazwa\\AppData\\Local\\Android\\Sdk`).  
+Fill in `.env` with real values (see [Configuration](#configuration)). Secrets are **never** committed.
 
-### Budowanie APK (EAS Build)
+### 2. Run the backend, web app, and database
+
+```bash
+docker compose up --build
+```
+
+| Service | URL |
+|---------|-----|
+| Web app | http://localhost |
+| REST API | http://localhost:8081 |
+| Health check | http://localhost:8081/api/health |
+| PostgreSQL | localhost:5432 |
+
+### 3. Run the mobile app (optional)
+
+```bash
+cd mobile
+npm install
+cp .env.example .env   # Windows: copy .env.example .env
+npx expo start --port 8082 -c
+```
+
+Set `EXPO_PUBLIC_API_URL` in `mobile/.env` to match your target:
+
+| Target | Value |
+|--------|-------|
+| Browser (web) | `http://localhost:8081` |
+| Android emulator | `http://10.0.2.2:8081` |
+| Physical device (same Wi-Fi) | `http://<YOUR_PC_IP>:8081` |
+
+Then press **a** for the Android emulator, or scan the QR code with **Expo Go**. See [`mobile/POLACZENIE-Z-SERWEREM.md`](mobile/POLACZENIE-Z-SERWEREM.md) for device/network setup details.
+
+## Configuration
+
+Environment variables for the backend stack live in the root `.env` file (consumed by `docker-compose.yml`):
+
+| Variable | Required | Description |
+|----------|:--------:|-------------|
+| `POSTGRES_PASSWORD` | ✅ | PostgreSQL password |
+| `JWT_SECRET` | ✅ | JWT signing key (min. 32 chars) |
+| `TESTING_APP_SECRET` | ✅ | Secret used by app tests (min. 64 chars) |
+| `JWT_EXPIRATION` | ⬜ | Token lifetime in ms (default `604800000` = 7 days) |
+| `CURRENCYFREAKS_APIKEY` | ⬜ | Fiat exchange rates API key |
+| `COINMARKETCAP_API_KEY` | ⬜ | Optional crypto data provider key |
+| `NEWSAPI_KEY` | ⬜ | Required for the News feature |
+| `GEMINI_API_KEY` | ⬜ | Required for AI news summaries |
+
+> The mobile app uses its own `mobile/.env` with a single `EXPO_PUBLIC_API_URL` pointing at the backend.
+
+## API Reference
+
+Base URL: `http://localhost:8081`
+
+### Auth — `/api/auth`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/signup` | Register a new user |
+| `POST` | `/signin` | Log in and receive a JWT |
+| `GET` | `/check` | Validate the current token |
+
+### Crypto — `/api/crypto`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | List supported cryptocurrencies with live prices |
+| `GET` | `/{symbol}/price` | Get the price for a single symbol |
+| `GET` | `/favorites` | List the user's favorite coins 🔒 |
+| `POST` | `/favorites/{symbol}` | Add a coin to favorites 🔒 |
+| `DELETE` | `/favorites/{symbol}` | Remove a coin from favorites 🔒 |
+
+### Currencies — `/api/currencies`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/rate` | Exchange rate between two currencies |
+| `GET` | `/external-rate` | Alias for the external rate lookup |
+
+### Orders — `/api/orders`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create an order 🔒 |
+| `GET` | `/my` | List the current user's orders 🔒 |
+| `GET` | `/` | List all orders 🔑 ADMIN |
+| `PUT` | `/{orderId}/status` | Update an order's status 🔑 ADMIN |
+
+### Admin — `/api/admin`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/orders` | List all orders 🔑 ADMIN |
+| `GET` | `/active-orders` | List active orders 🔑 ADMIN |
+| `PUT` | `/orders/{orderId}/status` | Update order status 🔑 ADMIN |
+| `POST` | `/orders/{orderId}/collect` | Mark an order as collected 🔑 ADMIN |
+
+### News — `/api/news`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Latest news with AI summaries |
+| `POST` | `/refresh` | Refresh the news cache |
+
+🔒 = authenticated user · 🔑 = admin only
+
+<details>
+<summary>Example: register and log in with <code>curl</code></summary>
+
+```bash
+# Register
+curl -X POST http://localhost:8081/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@example.com","password":"password123"}'
+
+# Log in
+curl -X POST http://localhost:8081/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+# Authenticated request
+curl http://localhost:8081/api/crypto -H "Authorization: Bearer <token>"
+```
+</details>
+
+## Project Structure
+
+```
+aplikacja-mobilna/
+├── backend/            # Spring Boot REST API, Spring Security, Flyway migrations
+├── frontend/           # React web app (Vite, MUI, Redux Toolkit)
+├── mobile/             # Expo / React Native app (Expo Router, Redux Toolkit, i18n)
+│   ├── app/            # Routes: (auth), (tabs)
+│   ├── src/            # store, api, theme, components, __tests__
+│   └── assets/         # icon, splash
+├── scripts/            # dev/network helper scripts
+├── docker-compose.yml
+└── README.md
+```
+
+## Testing
+
+```bash
+# Backend (from backend/)
+./gradlew test
+
+# Web (from frontend/)
+npm test
+
+# Mobile (from mobile/)
+npm test
+```
+
+The mobile app ships with Jest + React Native Testing Library coverage for Redux slices, the error boundary, theming, caching, and the store.
+
+## Building a Mobile APK
 
 ```bash
 cd mobile
@@ -77,109 +236,18 @@ eas login
 eas build --platform android --profile preview
 ```
 
-APK pobierzesz z panelu Expo. Własna ikona/splash: pliki w `mobile/assets/` (np. `icon.png` 1024×1024) — [dokumentacja Expo](https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/).
+Download the resulting APK from the Expo dashboard.
 
-## Struktura projektu
+## Troubleshooting
 
-```
-ProjectAPI1.1/
-├── backend/          # Spring Boot, REST API, Flyway
-├── frontend/         # React (web), Vite, Redux
-├── mobile/           # Expo (React Native)
-│   ├── app/          # Expo Router: (auth), (tabs)
-│   ├── src/          # store, api, theme, components, __tests__
-│   ├── assets/       # ikona, splash
-│   ├── app.json, eas.json
-│   └── package.json
-├── docker-compose.yml
-└── README.md
-```
+| Problem | Fix |
+|---------|-----|
+| Containers won't start | Check ports 80, 8081, 5432 are free; `docker compose down && docker compose up`. |
+| Backend can't reach DB | `docker compose logs postgres` — the container must be **healthy**. |
+| Web app can't reach API | Inspect `frontend/nginx.conf` and `docker compose logs frontend`. |
+| Mobile: "no server connection" | Backend must be running; set the right `EXPO_PUBLIC_API_URL` for your target and restart with `npx expo start --port 8082 -c`. |
+| "Android SDK path" / `adb` error | Install Android Studio and set `ANDROID_HOME` to the SDK directory. |
 
-## Konfiguracja
+## License
 
-### Zmienne środowiskowe (backend — docker-compose / application)
-
-- `SPRING_DATASOURCE_*`, `JWT_SECRET`, `JWT_EXPIRATION`  
-- `CURRENCYFREAKS_APIKEY`, `COINMARKETCAP_API_KEY`, `CRYPTO_SELL_DISCOUNT_PERCENT`  
-
-### Porty
-
-- Frontend (nginx): 80  
-- Backend: 8081  
-- Expo / Metro dla aplikacji mobilnej: 8082
-- PostgreSQL: 5432  
-
-## Testowanie API (curl)
-
-```bash
-# Rejestracja
-curl -X POST http://localhost:8081/api/auth/signup -H "Content-Type: application/json" -d "{\"username\":\"test\",\"email\":\"test@example.com\",\"password\":\"password123\"}"
-
-# Logowanie
-curl -X POST http://localhost:8081/api/auth/signin -H "Content-Type: application/json" -d "{\"email\":\"test@example.com\",\"password\":\"password123\"}"
-
-# Kryptowaluty (z tokenem)
-curl -X GET http://localhost:8081/api/crypto -H "Authorization: Bearer <token>"
-```
-
-## Rozwiązywanie problemów
-
-- **Kontenery nie startują:** sprawdź porty 80, 8081, 5432; `docker compose down && docker compose up`.  
-- **Backend nie łączy się z DB:** `docker compose logs postgres` — kontener musi być „healthy”.  
-- **Frontend nie łączy z backendem:** sprawdź `frontend/nginx.conf` i logi `docker compose logs frontend`.  
-- **Aplikacja mobilna — „Brak połączenia z serwerem”:** backend musi działać; dla emulatora Android ustaw w `mobile/.env`: `EXPO_PUBLIC_API_URL=http://10.0.2.2:8081`. Dla iPhone/telefonu w Wi‑Fi ustaw `EXPO_PUBLIC_API_URL=http://IP_KOMPUTERA:8081`. Expo uruchamiaj na osobnym porcie: `npx expo start --port 8082 -c`.  
-- **„Android SDK path” / „adb”:** zainstaluj Android Studio, ustaw `ANDROID_HOME` na katalog SDK.  
-- **403 w Expo Go na telefonie:** sprawdź, czy Expo nie koliduje z backendem na tym samym porcie. Backend zostaje na `8081`, a Expo uruchamiaj na `8082` (`npx expo start --port 8082 -c`).  
-- **UX w aplikacji mobilnej:** wprowadzono haptic feedback oraz lekkie animacje fade-in / press-scale na kluczowych ekranach, aby poprawić responsywność i komfort użycia.
-
-## Technologie
-
-- **Backend:** Spring Boot, Security (JWT), Data JPA, PostgreSQL, Flyway, Lombok  
-- **Frontend:** React, TypeScript, MUI, Redux Toolkit, React Router, Axios, Vite  
-- **Mobile:** Expo, Expo Router, Redux Toolkit, React Native Paper, SecureStore (native) / AsyncStorage (web), expo-location, NetInfo, Jest, expo-haptics, Animated  
-- **Infrastruktura:** Docker, PostgreSQL, Nginx, Gradle, npm  
-
-
-### Wymagania wstępne
-
-
-| Nr | Kryterium | Status |
-|----|-----------|--------|
-| 1 | **Architektura** — Redux Toolkit, podział na slice’y (auth, crypto, orders), komponenty + ekrany | Zrealizowane |
-| 2 | **Rozmiary i orientacja** — Flexbox, `useWindowDimensions`, `Dimensions.get`, pliki `theme/colors.ts`, `theme/spacing.ts` | Zrealizowane |
-| 3 | **Jakość kodu** — ESLint, Prettier, TypeScript (konfiguracja w `mobile/`) | Zrealizowane |
-| 4 | **Testy** — Jest, React Native Testing Library, 10+ testów (slice’y, ErrorBoundary, theme, cache, store) | Zrealizowane |
-| 5 | **Dokumentacja** — README z uruchomieniem, technologiami, strukturą; komentarze „dlaczego” w kluczowych miejscach (np. `api/client.ts`, `ErrorBoundary`) | Zrealizowane; opcjonalnie: screenshoty/GIF w README |
-| 6 | **Funkcje natywne (min. 2)** — (1) Expo SecureStore — token JWT na urządzeniu; (2) Expo Location — geolokalizacja z obsługą uprawnień i odmowy | Zrealizowane |
-| 7 | **Operacje asynchroniczne** — `createAsyncThunk`, stany loading/error, RefreshControl, sprawdzanie sieci (NetInfo) przed żądaniami | Zrealizowane |
-| 8 | **Nawigacja** — Expo Router: stack (auth: login, register) + tabs (Start, Kryptowaluty, Zamówienia) | Zrealizowane |
-| 9 | **Wydajność** — FlatList dla list, `useCallback`/`keyExtractor` przy listach | Zrealizowane |
-| 10 | **Styl i UI/UX** — React Native Paper (theme), spójne kolory i odstępy w `src/theme/` | Zrealizowane |
-| 11 | **Stan aplikacji** — Redux Toolkit (globalny), `useState` (lokalny, np. formularze) | Zrealizowane |
-| 12 | **Obsługa błędów** — Error Boundary, NetInfo (`useConnectivity`), komunikaty błędów, przycisk „Spróbuj ponownie” | Zrealizowane |
-| 13 | **Tryb offline** — AsyncStorage: cache listy kryptowalut i zamówień; przy braku sieci wyświetlane dane z cache | Zrealizowane |
-| 14 | **Bezpieczeństwo** — token w SecureStore (na web fallback: AsyncStorage), `EXPO_PUBLIC_API_URL` w zmiennych env, brak kluczy API w kodzie | Zrealizowane; w produkcji API po HTTPS |
-| 15 | **Deployment** — EAS Build, `app.json`, `eas.json`, opis budowania w README | Zrealizowane; **do dopracowania:** własna ikona (obecnie placeholder) — dodać pliki w `mobile/assets/` i przebudować |
-
-### Kryteria bazowe — oczekuje dopracowania
-
-| Co | Uwagi |
-|----|--------|
-| Repozytorium Git | Opublikować na GitHub/GitLab i utrzymywać sensowną historię commitów. |
-| Własna ikona aplikacji (kryt. 15) | Zamienić placeholder w `mobile/assets/` na własne `icon.png`, `splash-icon.png`, `adaptive-icon.png` (np. 1024×1024) i wykonać ponownie EAS Build. |
-| Screenshoty/GIF w README (kryt. 5) | Opcjonalnie dodać zrzuty ekranu z aplikacji mobilnej do README. |
-
-### Kryteria rozszerzone (na ocenę 5.0–6.0)
-
-| Kryterium | Status |
-|-----------|--------|
-| **A. Backend i baza danych** | Zrealizowane — aplikacja łączy się z własnym backendem (Spring Boot + PostgreSQL), dane trwałe po reinstalacji, CRUD ze stanami loading/error. |
-| **B. Autoryzacja** | Częściowo — rejestracja i logowanie (email + hasło), token w SecureStore, ekrany chronione, auto-login po restarcie. **Do dopracowania:** druga metoda logowania (np. Google lub Apple). |
-| **C. Integracja z zewnętrznym API** | Zrealizowane — backend korzysta z CoinMarketCap i CurrencyFreaks; aplikacja mobilna korzysta z tego API przez backend; loading/error obsłużone; klucze API w zmiennych środowiskowych po stronie backendu. |
-| **D. Zaawansowany UX** (min. 2 z: animacje, gesty, offline sync, haptic feedback) | **Zrealizowane w dużej części** — dodano haptic feedback, fade-in/press-scale animacje na kluczowych ekranach i subtelne animacje interakcji. Do ewentualnego rozwinięcia: dodatkowe gesty lub bardziej rozbudowane animacje. |
-
----
-
-## Licencja
-
-Projekt edukacyjny.  
+Proprietary. All rights reserved.
