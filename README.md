@@ -59,7 +59,7 @@ flowchart LR
 - **Orders** — create orders, view your own history, and track status; admins list, update status, and mark orders as collected.
 - **Admin panel** — manage all orders and active orders from a privileged view.
 - **News feed** — latest market news fetched from NewsAPI and summarized by Gemini AI.
-- **Mobile-native UX** — secure token storage, geolocation, offline cache, network awareness, haptics, and animations.
+- **Mobile-native UX** — secure token storage, geolocation, offline cache, network awareness, haptics, animations, and locally persisted profile avatars via `expo-file-system`.
 - **Internationalization** — multi-language support in the mobile app.
 
 ## Quick Start

@@ -22,6 +22,7 @@ import { spacing } from '../theme/spacing';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { loadProfile, saveProfile, updateSettings } from '../store/slices/profileSlice';
 import { useI18n } from '../i18n';
+import { deleteProfileAvatar, persistProfileAvatar } from '../utils/profileAvatarStorage';
 
 export default function EditProfileScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
@@ -110,22 +111,38 @@ export default function EditProfileScreen(): React.JSX.Element {
       return;
     }
 
-    await haptics.success();
     setIsSaving(true);
 
-    dispatch(updateSettings({ displayName: trimmedName, avatarUri }));
-    await dispatch(
-      saveProfile({
+    let persistedAvatarUri: string | null = null;
+
+    try {
+      persistedAvatarUri = await persistProfileAvatar(avatarUri);
+      const nextSettings = {
         ...settings,
         displayName: trimmedName,
-        avatarUri,
-      }),
-    );
+        avatarUri: persistedAvatarUri,
+      };
 
-    setIsSaving(false);
-    Alert.alert(t('common.success'), t('editProfile.saved'), [
-      { text: t('common.ok'), onPress: () => router.back() },
-    ]);
+      await dispatch(saveProfile(nextSettings)).unwrap();
+      dispatch(updateSettings({ displayName: trimmedName, avatarUri: persistedAvatarUri }));
+      if (persistedAvatarUri !== settings.avatarUri) {
+        await deleteProfileAvatar(settings.avatarUri);
+      }
+      setAvatarUri(persistedAvatarUri);
+
+      await haptics.success();
+      Alert.alert(t('common.success'), t('editProfile.saved'), [
+        { text: t('common.ok'), onPress: () => router.back() },
+      ]);
+    } catch {
+      if (persistedAvatarUri && persistedAvatarUri !== avatarUri && persistedAvatarUri !== settings.avatarUri) {
+        await deleteProfileAvatar(persistedAvatarUri);
+      }
+      await haptics.error();
+      Alert.alert(t('common.error'), t('errors.profile.saveFailed'));
+    } finally {
+      setIsSaving(false);
+    }
   }, [dispatch, displayName, avatarUri, settings, t]);
 
   const hasChanges =

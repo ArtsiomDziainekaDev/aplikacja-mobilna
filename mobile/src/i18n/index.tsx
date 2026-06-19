@@ -39,6 +39,7 @@ const translations = {
     'errors.orders.createFailed': 'Could not create order.',
     'errors.orders.fetchFailed': 'Could not load orders.',
     'errors.orders.invalidAmount': 'Invalid order amount.',
+    'errors.profile.saveFailed': 'Could not save profile settings.',
 
     'errorBoundary.retry': 'Try again',
     'errorBoundary.title': 'Something went wrong',
@@ -229,6 +230,7 @@ const translations = {
     'errors.orders.createFailed': 'Nie udało się utworzyć zamówienia.',
     'errors.orders.fetchFailed': 'Nie udało się załadować zamówień.',
     'errors.orders.invalidAmount': 'Nieprawidłowa kwota zamówienia.',
+    'errors.profile.saveFailed': 'Nie udało się zapisać ustawień profilu.',
 
     'errorBoundary.retry': 'Spróbuj ponownie',
     'errorBoundary.title': 'Coś poszło nie tak',
@@ -419,6 +421,7 @@ const translations = {
     'errors.orders.createFailed': 'Не удалось создать заказ.',
     'errors.orders.fetchFailed': 'Не удалось загрузить заказы.',
     'errors.orders.invalidAmount': 'Некорректная сумма заказа.',
+    'errors.profile.saveFailed': 'Не удалось сохранить настройки профиля.',
 
     'errorBoundary.retry': 'Попробовать снова',
     'errorBoundary.title': 'Что-то пошло не так',
