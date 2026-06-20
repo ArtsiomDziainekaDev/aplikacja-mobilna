@@ -1,0 +1,7 @@
+CREATE TABLE currencies (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(3) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    rate DECIMAL(10,4) NOT NULL,
+    base_code VARCHAR(3) NOT NULL
+); 

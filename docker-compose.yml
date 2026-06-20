@@ -1,0 +1,80 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: crypto_db
+    environment:
+      POSTGRES_DB: crypto_db
+      POSTGRES_USER: postgres
+      # Ustaw POSTGRES_PASSWORD w pliku .env (nie commituj prawdziwych haseł)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto_network
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crypto_backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/crypto_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_WEB_CORS_ALLOWED_ORIGINS: http://localhost
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-604800000}
+      TESTING_APP_SECRET: ${TESTING_APP_SECRET}
+      CURRENCYFREAKS_APIKEY: ${CURRENCYFREAKS_APIKEY:-CHANGE_ME}
+      COINMARKETCAP_API_URL: ${COINMARKETCAP_API_URL:-https://pro-api.coinmarketcap.com/v1}
+      COINMARKETCAP_API_KEY: ${COINMARKETCAP_API_KEY:-CHANGE_ME}
+      CRYPTO_SELL_DISCOUNT_PERCENT: 15
+      # News feature
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-CHANGE_ME}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-CHANGE_ME}
+    ports:
+      - "0.0.0.0:8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - crypto_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crypto_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - crypto_network
+
+volumes:
+  postgres_data:
+
+networks:
+  crypto_network:
+    driver: bridge

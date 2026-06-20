@@ -1,0 +1,119 @@
+.error-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  padding: 20px;
+}
+
+.error-content {
+  text-align: center;
+  padding: 3rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  max-width: 500px;
+  width: 100%;
+}
+
+.error-status {
+  font-size: 6rem;
+  font-weight: 700;
+  color: #dc3545;
+  margin: 0;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.error-title {
+  font-size: 2rem;
+  color: #212529;
+  margin: 1rem 0;
+  font-weight: 600;
+}
+
+.error-description {
+  color: #6c757d;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.back-button,
+.home-button,
+.login-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.home-button {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.home-button:hover {
+  background-color: #0b5ed7;
+  transform: translateY(-1px);
+}
+
+.login-button {
+  background-color: #198754;
+  color: white;
+}
+
+.login-button:hover {
+  background-color: #157347;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .error-content {
+    padding: 2rem;
+  }
+
+  .error-status {
+    font-size: 4rem;
+  }
+
+  .error-title {
+    font-size: 1.5rem;
+  }
+
+  .error-description {
+    font-size: 1rem;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+
+  .back-button,
+  .home-button,
+  .login-button {
+    width: 100%;
+  }
+} 

@@ -1,0 +1,109 @@
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { ProfileSettings } from '../../types';
+
+const STORAGE_KEY = '@crypto_profile_settings';
+const APP_LANGUAGES = ['en', 'pl', 'ru'] as const;
+
+const defaultSettings: ProfileSettings = {
+  displayName: '',
+  avatarUri: null,
+  language: 'en',
+  privacy: {
+    showPortfolio: true,
+    showActivity: true,
+  },
+};
+
+interface ProfileState {
+  settings: ProfileSettings;
+  loaded: boolean;
+}
+
+const initialState: ProfileState = {
+  settings: defaultSettings,
+  loaded: false,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isAppLanguage(value: unknown): value is ProfileSettings['language'] {
+  return typeof value === 'string' && APP_LANGUAGES.includes(value as ProfileSettings['language']);
+}
+
+function normalizeProfileSettings(value: unknown): ProfileSettings {
+  if (!isRecord(value)) return defaultSettings;
+
+  const privacy = isRecord(value.privacy) ? value.privacy : {};
+  const language = isAppLanguage(value.language)
+    ? value.language
+    : defaultSettings.language;
+
+  return {
+    displayName: typeof value.displayName === 'string' ? value.displayName : defaultSettings.displayName,
+    avatarUri: typeof value.avatarUri === 'string' ? value.avatarUri : null,
+    language,
+    privacy: {
+      showPortfolio: typeof privacy.showPortfolio === 'boolean'
+        ? privacy.showPortfolio
+        : defaultSettings.privacy.showPortfolio,
+      showActivity: typeof privacy.showActivity === 'boolean'
+        ? privacy.showActivity
+        : defaultSettings.privacy.showActivity,
+    },
+  };
+}
+
+export const loadProfile = createAsyncThunk('profile/load', async () => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      return normalizeProfileSettings(JSON.parse(raw));
+    }
+  } catch {
+    /* Profile settings are local-only; fall back to defaults if storage is invalid. */
+  }
+  return defaultSettings;
+});
+
+export const saveProfile = createAsyncThunk(
+  'profile/save',
+  async (settings: ProfileSettings) => {
+    const normalized = normalizeProfileSettings(settings);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
+  },
+);
+
+const profileSlice = createSlice({
+  name: 'profile',
+  initialState,
+  reducers: {
+    updateSettings(state, action: PayloadAction<Partial<ProfileSettings>>) {
+      state.settings = normalizeProfileSettings({ ...state.settings, ...action.payload });
+    },
+    updatePrivacy(
+      state,
+      action: PayloadAction<Partial<ProfileSettings['privacy']>>,
+    ) {
+      state.settings.privacy = {
+        ...state.settings.privacy,
+        ...action.payload,
+      };
+    },
+  },
+  extraReducers: (builder) => {
+    // saveProfile only persists the current settings to storage; it must not
+    // write a new settings object back into state, otherwise the reference
+    // change retriggers the auto-save effect in SettingsScreen and loops.
+    builder.addCase(loadProfile.fulfilled, (state, action) => {
+      state.settings = action.payload;
+      state.loaded = true;
+    });
+  },
+});
+
+export const { updateSettings, updatePrivacy } = profileSlice.actions;
+export default profileSlice.reducer;
